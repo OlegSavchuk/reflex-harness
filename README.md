@@ -1,4 +1,6 @@
-# Reflex
+# <img src="docs/logo.svg" alt="Reflex logo" width="40" align="center" /> Reflex
+
+**Website:** [website-sigma-virid-35.vercel.app](https://website-sigma-virid-35.vercel.app/)
 
 Reflex is a harness around a coding model. When the model gets stuck repeating a failed fix
 (it breaks something, or keeps patching the same place with no progress), Reflex changes the
