@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 570" width="1000" height="570" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#a7aaa5"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#4e9de6"/>
+    </marker>
+    <marker id="arrow-bronze" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#a8784d"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="570" fill="#f8f8f5"/>
+  <text x="500" y="38" fill="#858781" font-size="12" letter-spacing="3" text-anchor="middle">REFLEX HARNESS · CONTROL LOOP ARCHITECTURE</text>
+
+  <!-- Controller and the context configuration it selects. -->
+  <rect x="390" y="70" width="220" height="80" rx="6" fill="#fbfbf9" stroke="#deded8" stroke-width="1.5"/>
+  <text x="500" y="96" fill="#727671" font-size="10" letter-spacing="2" text-anchor="middle">01 / CONTROLLER</text>
+  <text x="500" y="120" fill="#34383b" font-size="16" font-weight="700" text-anchor="middle">Controller</text>
+  <text x="500" y="139" fill="#777a7c" font-size="11" text-anchor="middle">Attempt loop · context selection</text>
+
+  <rect x="690" y="70" width="250" height="80" rx="6" fill="#fbfbf9" stroke="#deded8" stroke-width="1.5"/>
+  <text x="815" y="96" fill="#727671" font-size="10" letter-spacing="2" text-anchor="middle">CONTEXT</text>
+  <text x="815" y="120" fill="#34383b" font-size="16" font-weight="700" text-anchor="middle">Context Configs</text>
+  <text x="815" y="139" fill="#777a7c" font-size="11" text-anchor="middle">focused · dep · broad · custom</text>
+
+  <!-- The attempt moves left to right through generation, verification, detection, and storage. -->
+  <rect x="30" y="230" width="210" height="90" rx="6" fill="#fbfbf9" stroke="#4e9de6" stroke-width="1.5"/>
+  <text x="135" y="257" fill="#4e9de6" font-size="10" letter-spacing="2" text-anchor="middle">02 / AGENT</text>
+  <text x="135" y="283" fill="#34383b" font-size="16" font-weight="700" text-anchor="middle">Coding Model</text>
+  <text x="135" y="304" fill="#777a7c" font-size="11" text-anchor="middle">OpenRouter · patch generation</text>
+
+  <rect x="280" y="230" width="190" height="90" rx="6" fill="#fbfbf9" stroke="#deded8" stroke-width="1.5"/>
+  <text x="375" y="257" fill="#727671" font-size="10" letter-spacing="2" text-anchor="middle">03 / ORACLE</text>
+  <text x="375" y="283" fill="#34383b" font-size="16" font-weight="700" text-anchor="middle">Test Runner</text>
+  <text x="375" y="304" fill="#777a7c" font-size="11" text-anchor="middle">pytest · pass / fail / regression</text>
+
+  <rect x="510" y="230" width="190" height="90" rx="6" fill="#fbfbf9" stroke="#a8784d" stroke-width="1.5"/>
+  <text x="605" y="257" fill="#a8784d" font-size="10" letter-spacing="2" text-anchor="middle">04 / DETECTOR</text>
+  <text x="605" y="283" fill="#34383b" font-size="16" font-weight="700" text-anchor="middle">Jev</text>
+  <text x="605" y="304" fill="#777a7c" font-size="11" text-anchor="middle">Semantic loop detection</text>
+
+  <rect x="740" y="230" width="230" height="90" rx="6" fill="#fbfbf9" stroke="#367fc9" stroke-width="1.5"/>
+  <text x="855" y="257" fill="#367fc9" font-size="10" letter-spacing="2" text-anchor="middle">05 / STORE</text>
+  <text x="855" y="283" fill="#34383b" font-size="16" font-weight="700" text-anchor="middle">MongoDB Atlas</text>
+  <text x="855" y="304" fill="#777a7c" font-size="11" text-anchor="middle">Attempt memory · retrieval</text>
+
+  <!-- Flow connectors and labels are kept in the gaps between nodes. -->
+  <path d="M240 275 H280" stroke="#a7aaa5" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="260" y="263" fill="#777a7c" font-size="9" text-anchor="middle">patch</text>
+  <path d="M470 275 H510" stroke="#a7aaa5" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="490" y="263" fill="#777a7c" font-size="9" text-anchor="middle">diff</text>
+  <path d="M700 275 H740" stroke="#a8784d" stroke-width="1.5" fill="none" marker-end="url(#arrow-bronze)"/>
+  <text x="720" y="263" fill="#a8784d" font-size="9" text-anchor="middle">record</text>
+
+  <!-- Context flows into the agent; results and stored evidence return to the controller. -->
+  <path d="M420 150 L150 230" stroke="#4e9de6" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)" stroke-dasharray="5 4"/>
+  <text x="286" y="185" fill="#4e9de6" font-size="10" text-anchor="middle">context</text>
+  <path d="M375 230 L465 150" stroke="#a7aaa5" stroke-width="1.5" fill="none" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+  <text x="397" y="188" fill="#777a7c" font-size="10" text-anchor="middle">results</text>
+  <path d="M690 110 H610" stroke="#a7aaa5" stroke-width="1.5" fill="none" marker-end="url(#arrow)" stroke-dasharray="5 4"/>
+  <text x="650" y="98" fill="#777a7c" font-size="9" text-anchor="middle">context config</text>
+  <path d="M855 230 V190 H622 V110 H610" stroke="#367fc9" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)" stroke-dasharray="5 4"/>
+  <text x="755" y="181" fill="#367fc9" font-size="10" text-anchor="middle">evidence feedback</text>
+
+  <!-- The embedding provider connects directly to stored attempt memory. -->
+  <rect x="740" y="405" width="230" height="80" rx="6" fill="#fbfbf9" stroke="#a8784d" stroke-width="1.5"/>
+  <text x="855" y="431" fill="#a8784d" font-size="10" letter-spacing="2" text-anchor="middle">EMBEDDING</text>
+  <text x="855" y="455" fill="#34383b" font-size="16" font-weight="700" text-anchor="middle">Voyage AI</text>
+  <text x="855" y="474" fill="#777a7c" font-size="11" text-anchor="middle">voyage-4 · semantic vectors</text>
+  <path d="M855 405 V320" stroke="#a8784d" stroke-width="1.5" fill="none" marker-end="url(#arrow-bronze)" stroke-dasharray="4 4"/>
+  <text x="883" y="366" fill="#a8784d" font-size="9">embeddings</text>
+
+  <!-- Legend -->
+  <rect x="30" y="390" width="440" height="112" rx="5" fill="#fbfbf9" stroke="#deded8" stroke-width="1.5"/>
+  <text x="52" y="416" fill="#727671" font-size="10" letter-spacing="2">LEGEND</text>
+  <line x1="52" y1="438" x2="88" y2="438" stroke="#4e9de6" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="101" y="442" fill="#686c69" font-size="10">Context injection</text>
+  <line x1="230" y1="438" x2="266" y2="438" stroke="#367fc9" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <text x="279" y="442" fill="#686c69" font-size="10">Evidence feedback</text>
+  <line x1="52" y1="472" x2="88" y2="472" stroke="#a7aaa5" stroke-width="1.5"/>
+  <text x="101" y="476" fill="#686c69" font-size="10">Attempt data flow</text>
+  <line x1="230" y1="472" x2="266" y2="472" stroke="#a8784d" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="279" y="476" fill="#686c69" font-size="10">Embeddings</text>
+
+  <text x="500" y="540" fill="#45494b" font-size="10" letter-spacing="3" text-anchor="middle">OBSERVE → SELECT → PATCH → TEST → RECORD → REPEAT</text>
+</svg>

@@ -169,7 +169,6 @@ function GlyphAgent() {
 export default function Home() {
   const [activeSection, setActiveSection] = React.useState("introduction");
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [traceVisible, setTraceVisible] = React.useState(false);
 
   React.useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -180,17 +179,8 @@ export default function Home() {
       const element = document.getElementById(id);
       if (element) observer.observe(element);
     });
-    const tracePanel = document.querySelector(".trace-panel");
-    const traceObserver = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        setTraceVisible(true);
-        traceObserver.disconnect();
-      }
-    }, { threshold: 0.2 });
-    if (tracePanel) traceObserver.observe(tracePanel);
     return () => {
       observer.disconnect();
-      traceObserver.disconnect();
     };
   }, []);
 
@@ -259,7 +249,7 @@ export default function Home() {
               { src: "/logos/mongodb.svg", alt: "MongoDB", h: 38 },
               { src: "/logos/voyage.svg", alt: "Voyage AI", h: 34 },
               { src: "/logos/open_router.svg", alt: "OpenRouter", h: 34 },
-              { src: "/logos/jev.webp", alt: "Jev", h: 34 },
+              { src: "/logos/jev.webp", alt: "TypeSafe AI", h: 34 },
               { src: "/logos/py_test.svg", alt: "pytest", h: 35 },
             ].map(({ src, alt, h }) => <img key={alt} src={src} alt={alt} style={{ height: h }} />)}
           </div>
@@ -304,17 +294,16 @@ export default function Home() {
         </section>
 
         <section id="benchmarks" className="content-frame frame-panel">
-          <SectionHeading number="04" eyebrow="A TRACE YOU CAN INSPECT" title="Measure the recovery, including the miss." />
-          <div className={"trace-panel" + (traceVisible ? " is-visible" : "")}>
-            <div className="trace-topbar"><span className="trace-dots"><i/><i/><i/></span><span>REFLEX / SEM-DEV-02</span><span className="trace-badge"><i/> RECORDED TRACE</span></div>
-            <div className="trace-columns"><div className="trace-intro"><h3>Strategy changed.<br /><em>Verification did not pass.</em></h3></div>
-              <div className="trace-steps">
-                <div className="trace-step"><span className="trace-step-number">01</span><span className="trace-step-line"/><div><b>Focused attempt</b><small>Started with 1 failing test</small></div><span className="trace-status">START</span></div>
-                <div className="trace-step"><span className="trace-step-number">02</span><span className="trace-step-line trace-step-bronze"/><div><b>Regression detected</b><small>2 regressions found · reset</small></div><span className="trace-status trace-status-bronze">RESET</span></div>
-                <div className="trace-step"><span className="trace-step-number">03</span><span className="trace-step-line trace-step-blue"/><div><b>Dependency context</b><small>Diagnostics passed</small></div><span className="trace-status trace-status-blue">CHECK</span></div>
-              </div>
-            </div>
-            <div className="trace-result"><span className="result-icon">!</span><div><b>Protected verification failed</b><small>This run is not counted as a verified solve.</small></div><span className="result-tag">NO SOLVE</span></div>
+          <SectionHeading number="04" eyebrow="SYSTEM ARCHITECTURE" title="How the control loop works." detail="Every attempt is observed, recorded, and used to select the next context. The loop runs until a verified fix lands or the budget is spent." />
+          <div className="arch-diagram-wrap">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/architecture.svg"
+              alt="Reflex Harness architecture diagram: Controller selects context, Coding Model generates a patch, Test Runner evaluates it, Jev detects semantic loops, MongoDB Atlas stores attempt memory, Voyage AI provides embeddings. Evidence flows back to the Controller."
+              className="arch-diagram"
+              width="1000"
+              height="570"
+            />
           </div>
 
           <div className="gate8-results">
@@ -325,6 +314,10 @@ export default function Home() {
               </div>
               <div className="gate8-run-meta"><b>60</b><span>RUNS</span><i />4 TASKS <i />5 REPEATS</div>
             </div>
+
+            <figure className="gate8-chart">
+              <img src="/gate8-benchmarks.svg" alt="Gate 8 results: Reflex with memory verified 5 of 10 fixes for oscillation and 8 of 10 for semantic repetition, 13 of 20 overall, at $0.0366. Fixed fallback verified 4 of 20 at $0.0391. Plain retry verified 0 of 20 at $0.0647. In family A, 9 of 10 plain retry runs passed diagnostics but none passed protected verification." />
+            </figure>
 
             <div className="gate8-arm-grid">
               {gate8Arms.map((arm, index) => (
@@ -372,7 +365,7 @@ export default function Home() {
               { src: "/logos/mongodb.svg", alt: "MongoDB", name: "MongoDB Atlas 8.0", role: "Attempt memory · retrieval · selection" },
               { src: "/logos/voyage.svg", alt: "Voyage AI", name: "Voyage AI · voyage-4", role: "Semantic embeddings" },
               { src: "/logos/open_router.svg", alt: "OpenRouter", name: "OpenRouter", role: "Model routing" },
-              { src: "/logos/jev.webp", alt: "Jev", name: "Jev 1.13", role: "Semantic loop detection" },
+              { src: "/logos/jev.webp", alt: "TypeSafe AI", name: "Jev 1.13", role: "Semantic loop detection" },
               { src: "/logos/py_test.svg", alt: "pytest", name: "pytest", role: "Test oracle" },
             ].map(({ src, alt, name, role }) => <article className="stack-card" key={name}><div className="stack-logo"><img src={src} alt={alt} /></div><div><h3>{name}</h3><p>{role}</p></div><span className="stack-arrow">↗</span></article>)}
           </div>
