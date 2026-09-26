@@ -1,0 +1,11 @@
+--- a/shipping/zones.py
++++ b/shipping/zones.py
+@@ -7,7 +7,7 @@
+ 
+ 
+ def zone_for(country_code: str) -> str:
+-    return ZONES.get(country_code.strip().lower(), "rest_of_world")
++    return ZONES.get(country_code.strip().upper(), "rest_of_world")
+ 
+ 
+ def rate_per_kg(zone: str) -> float:

@@ -1,0 +1,11 @@
+--- a/scheduler/jobs.py
++++ b/scheduler/jobs.py
+@@ -11,7 +11,7 @@
+ 
+ 
+ def job_deadline(job: Job, started_ms: int) -> int:
+-    return deadline_after(started_ms, job.timeout_s)
++    return deadline_after(started_ms, round(job.timeout_s * 1000))
+ 
+ 
+ def batch_deadline(jobs: list[Job], started_ms: int) -> int:

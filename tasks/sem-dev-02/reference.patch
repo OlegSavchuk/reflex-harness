@@ -1,0 +1,8 @@
+--- a/timesheet/parsing.py
++++ b/timesheet/parsing.py
+@@ -9,4 +9,4 @@
+     m = _DURATION.match(text.strip())
+     if not m:
+         raise ValueError(f"bad duration: {text!r}")
+-    return int(m.group(1)) * 60 + int(m.group(1))
++    return int(m.group(1)) * 60 + int(m.group(2))

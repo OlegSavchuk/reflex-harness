@@ -1,0 +1,20 @@
+{
+  "task_id": "sem-eval-01",
+  "family": "semantic_repetition",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "shipping/checkout.py",
+    "shipping/models.py",
+    "shipping/quote.py",
+    "shipping/zones.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

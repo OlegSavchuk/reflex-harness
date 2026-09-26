@@ -1,0 +1,14 @@
+--- a/gradebook/models.py
++++ b/gradebook/models.py
+@@ -2,9 +2,9 @@
+ 
+ 
+ class GradeBook:
+-    def __init__(self, course: str, scores: list[float] = []):
++    def __init__(self, course: str, scores: list[float] | None = None):
+         self.course = course
+-        self.scores = scores
++        self.scores = list(scores) if scores is not None else []
+ 
+     def add(self, score: float) -> None:
+         self.scores.append(score)

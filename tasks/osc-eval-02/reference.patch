@@ -1,0 +1,11 @@
+--- a/geo/geojson_import.py
++++ b/geo/geojson_import.py
+@@ -3,7 +3,7 @@
+ 
+ 
+ def linestring_length_km(feature: dict) -> float:
+-    pts = [tuple(c) for c in feature["geometry"]["coordinates"]]
++    pts = [(lat, lon) for lon, lat in feature["geometry"]["coordinates"]]
+     return round(sum(haversine_km(a, b) for a, b in zip(pts, pts[1:])), 1)
+ 
+ 

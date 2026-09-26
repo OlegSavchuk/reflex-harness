@@ -1,0 +1,26 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Third-party MongoDB agent skills (installed locally via scripts/install-mongodb-skills.sh)
+.claude/skills/
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Run artifacts
+runs/
+workspaces/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

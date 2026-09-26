@@ -1,0 +1,9 @@
+{
+  "task_id": "osc-dev-01",
+  "family": "oscillation",
+  "split": "dev",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": ["billing/models.py", "billing/tax.py", "billing/invoice.py", "billing/refund.py"],
+  "diag_cmd": ["pytest", "tests"],
+  "protected_cmd": ["pytest", "protected"]
+}

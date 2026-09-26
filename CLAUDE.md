@@ -1,0 +1,159 @@
+# reflex-harness
+
+A coding-agent harness that detects repeated failed fixes and changes the agent's
+context using evidence stored in MongoDB Atlas. Python 3.10+.
+
+**Read `docs/SPEC.md` first** — full build specification: architecture, decision ladder,
+selection pipeline, Jev contract, task suite, evaluation protocol, build gates.
+
+## Rules for any assistant working here
+
+- Never read, print, or commit `.env`. Credentials come from environment variables only.
+- Never hard-code `tried_config_ids`, `snapshot_id`, or thresholds into a pipeline.
+  They are function parameters.
+- Protected evaluation tests live outside every agent workspace. Never copy them in.
+- The frozen memory snapshot is read-only during evaluation. Evaluation writes go to
+  `attempts`, `decisions` and `calls` with `phase: "eval"`, never to `checkpoints`.
+- Every external model call writes one row to `calls`. No exceptions.
+- Use the MongoDB skills in `.claude/skills/` for query writing, search/vector
+  indexes, schema questions and connection setup. The MCP server is read-only;
+  create indexes through `scripts/`, not through MCP, so setup is reproducible.
+
+## Output format for MongoDB code
+
+- Driver: `pymongo` (sync). Pipelines are Python lists of dicts.
+- Aggregation pipelines live in `reflex_harness/pipelines.py` as functions that take
+  parameters and return the pipeline list. No string templating.
+- Datetimes are timezone-aware UTC (`datetime.now(timezone.utc)`). Models don't
+  know today's date — run `date -u` if a query depends on it.
+
+## Cluster facts
+
+- Atlas Hackathon Sandbox, M10, MongoDB 8.0.x, AWS single region.
+- Available: `$vectorSearch`, `$search`, `$rankFusion`, change streams, `$unionWith`.
+- NOT available on 8.0: `$scoreFusion` (8.2+), `$rerank` (8.3). Do not use them.
+- Automated Embedding (`autoEmbed`) is a Preview feature; requires storage
+  auto-scaling. Embeddings are generated asynchronously — poll until searchable.
+- `$vectorSearch` and `$search` must be the first stage of their pipeline.
+  Filter inside the stage (`filter` / compound `filter`), not with `$match` before it.
+- `$rankFusion` input pipelines cannot modify documents; group/score after fusion.
+
+## Database: `reflex`
+
+### Collection: `configs` — versioned registry of the four context configurations
+
+```python
+class Config(TypedDict):
+    config_id: str            # "focused" | "caller" | "dependency" | "diagnostic"
+    registry: str             # registry version, e.g. "r1"; selection filters on it
+    order: int                # fixed exploration / tie-break order, 1..4
+    context: dict             # {"focal": bool, "error": bool, "callers": bool, "deps": bool}
+    workflow: dict            # {"diagnostic_first": bool}
+```
+Example:
+```json
+{"config_id": "caller", "registry": "r1", "order": 2,
+ "context": {"focal": true, "error": true, "callers": true, "deps": false},
+ "workflow": {"diagnostic_first": false}}
+```
+Indexes: unique `{registry: 1, config_id: 1}`.
+
+### Collection: `checkpoints` — frozen development memory; the ONLY collection retrieval searches
+
+```python
+class Outcome(TypedDict):
+    config_id: str
+    solved: bool              # all diagnostic tests passed after the one trial attempt
+    verified: bool            # protected tests also passed (dev tasks only). A solve = solved AND verified
+    regression: bool          # a previously passing diagnostic test failed
+    cost_usd: float           # total model cost of the trial
+
+class Checkpoint(TypedDict):
+    checkpoint_id: str
+    snapshot_id: str          # frozen memory version, e.g. "mem-v1"
+    family: str               # "oscillation" | "semantic_repetition"
+    task_id: str              # dev task that produced it (never an eval task)
+    failure_narrative: str    # 2-3 sentences, structural pattern only: no identifiers, paths, domain
+                              # nouns or test names (those go in error_symbols). autoEmbed field.
+    error_symbols: str        # space-separated test names, exception types, function names. Lexical field.
+    focal: dict               # pinned focal the context was built around: {"path", "function", "source"}
+    facets: dict              # {"callers_of_focal": int, "files_touched": int}
+    compat: dict              # {"language": "python", "protocol": "p1", "registry": "r1"}
+    prior_attempts: list      # identical attempt summaries shown to all four trials
+    outcomes: list[Outcome]   # exactly one per config, both successes and failures
+    created_at: datetime
+```
+Example (truncated):
+```json
+{"checkpoint_id": "osc-dev-01", "snapshot_id": "mem-v1", "family": "oscillation",
+ "failure_narrative": "Changing a shared helper to satisfy one caller broke a second caller that passes values in a different unit. The agent reverted, restoring the original failure.",
+ "error_symbols": "apply_tax test_invoice_total_cents test_refund_total_keeps_cents TypeError AssertionError",
+ "compat": {"language": "python", "protocol": "p1", "registry": "r1"},
+ "outcomes": [{"config_id": "focused", "solved": false, "verified": false, "regression": true, "cost_usd": 0.021},
+              {"config_id": "caller", "solved": true, "verified": true, "regression": false, "cost_usd": 0.034}]}
+```
+Indexes:
+- Vector search `ckpt_vec`:
+  `{"fields": [{"type": "autoEmbed", "modality": "text", "path": "failure_narrative", "model": "voyage-4"},
+  {"type": "filter", "path": "snapshot_id"}, {"type": "filter", "path": "compat.protocol"}]}`
+- Atlas Search `ckpt_text`: `error_symbols` as `string` with `lucene.whitespace`;
+  `snapshot_id` and `compat.protocol` as `token`.
+- Regular: unique `{checkpoint_id: 1}`.
+
+Query form for autoEmbed (verify at gate 1): `$vectorSearch` with `query: "<text>"`
+instead of `queryVector`. Fallback if it fails: manual Voyage embeddings + `queryVector`, disclosed.
+
+### Collection: `attempts` — exact record of every attempt, every run
+
+```python
+class Attempt(TypedDict):
+    run_id: str
+    phase: str                # "dev" | "eval"
+    mode: str                 # "memory" | "fallback" | "plain_retry"
+    task_id: str
+    attempt_n: int            # 1-based
+    config_id: str
+    focal_source: str         # "traceback" | "manifest" | "re-resolved" — how the pinned focal was
+                              # resolved (disclosed). Pinned once per task from the seed baseline.
+    parent_state_hash: str    # hash of allowlisted files before the patch
+    state_hash: str           # after the patch
+    patch: dict               # {"files": [{"path": str, "content": str}]}
+    patch_fingerprint: str
+    failed_tests: list[str]
+    passed_tests: list[str]
+    diag_pass: bool
+    regression: bool
+    rolled_back: bool         # controller restored parent state
+    trigger: str | None       # None | "regression" | "exact_repeat" | "jev"
+    jev_p_repeating: float | None
+    created_at: datetime
+```
+Indexes: `{run_id: 1, attempt_n: 1}`, `{task_id: 1, phase: 1}`.
+
+### Collection: `decisions` — one row per intervention
+
+`run_id`, `task_id`, `attempt_n`, `trigger`, `tried_config_ids` (list),
+`retrieved` (list of `{checkpoint_id, fusion_score}`), `candidates` (the full sorted
+table the selection pipeline returns: per-config support/solves/regressions/mean_cost/score),
+`chosen_config_id` (row 0),
+`status` ("selected" | "insufficient_evidence" | "configurations_exhausted"), `created_at`.
+
+### Collection: `calls` — cost ledger, one row per external call
+
+`run_id`, `phase`, `attempt_n`, `component` ("agent" | "narrator" | "jev" | "embed"),
+`model` (dated snapshot from the response), `input_tokens`, `output_tokens`,
+`cost_usd`, `latency_ms`, `created_at`.
+Index: `{run_id: 1, component: 1}`.
+
+### Collection: `tasks` — bug-task registry
+
+`task_id`, `family`, `split` ("dev" | "eval"), `repo_path`, `allowlist` (editable
+source files), `diag_cmd`, `protected_cmd`. Reference fixes are never stored here.
+
+## Selection policy (frozen)
+
+score = (solves − 2 × regressions) / (support + 1), where a solve = `solved AND verified`
+(diagnostics and protected tests both passed in the dev trial).
+Sort: score desc → mean_cost asc → order asc. The pipeline returns every untried config in
+that order; Python takes row 0 and stores the whole table in `decisions.candidates`. Unknown configs get
+`mean_cost = 1e9` (null would sort first). One configuration switch per task.

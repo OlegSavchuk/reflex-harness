@@ -1,0 +1,11 @@
+--- a/imaging/print_layout.py
++++ b/imaging/print_layout.py
+@@ -3,7 +3,7 @@
+ 
+ 
+ def printed_size(width: int, height: int, zoom_percent: float) -> tuple[int, int]:
+-    return scale(width, height, zoom_percent)
++    return scale(width, height, zoom_percent / 100)
+ 
+ 
+ def pages_needed(width: int, height: int, zoom_percent: float, page: tuple[int, int]) -> int:

@@ -1,0 +1,13 @@
+--- a/billing/refund.py
++++ b/billing/refund.py
+@@ -5,8 +5,8 @@
+ 
+ def refund_total_dollars(items: list[LineItem], tax_rate: float,
+                          restocking_fee: float = 0.0) -> float:
+-    gross = sum(item.quantity * item.unit_price for item in items)
+-    return round(apply_tax(gross, tax_rate) - restocking_fee, 2)
++    gross_cents = round(sum(item.quantity * item.unit_price for item in items) * 100)
++    return round(apply_tax(gross_cents, tax_rate) / 100 - restocking_fee, 2)
+ 
+ 
+ def refund_summary(order_id: str, items: list[LineItem], tax_rate: float,

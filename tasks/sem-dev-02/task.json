@@ -1,0 +1,20 @@
+{
+  "task_id": "sem-dev-02",
+  "family": "semantic_repetition",
+  "split": "dev",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "timesheet/billing.py",
+    "timesheet/models.py",
+    "timesheet/parsing.py",
+    "timesheet/summary.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}
