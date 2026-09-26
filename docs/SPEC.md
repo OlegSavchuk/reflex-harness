@@ -692,6 +692,32 @@ on family A; under the verified-fix standard it is **0/10**.
 - Tasks where attempt 1 does not regress, so the repeated-strategy detection is actually tested.
 - A random-selection arm, run for real rather than computed.
 
+
+### 13.6 Gate 9 plan decisions (recorded 2026-09-26, before any Gate 9 eval run)
+
+Recorded now; written unchanged into the Gate 9 pre-registration (Phase 6).
+
+**Counter tasks (frozen list).** The eval tasks where the caller-count rule (`caller_count` arm,
+§13: `caller` if the focal has more than one caller, else `dependency`) does not match the
+designed config: **`osc-eval-09`, `osc-eval-10`, `sem-eval-09`, `sem-eval-10`**. The list is
+frozen as written; eval tasks added later are reported separately and never join it.
+
+**Named primary comparison.** Verified rate of `memory` vs `caller_count` on the counter tasks,
+reported alongside the all-task results. N = 4 tasks (repeats re-sample the model, they do not
+add tasks). It is the test of whether memory learned more than the structural clue; at N = 4 it
+can show a difference, not establish one.
+
+**Prediction (written 2026-09-26).** Memory may NOT beat the rule on the counter tasks, because few
+dev checkpoints follow the counter pattern (a dev task whose caller count mispredicts its
+designed config). As of this entry that is 2 dev tasks, `sem-dev-02` and `sem-dev-06`
+(`osc-dev-06` is a 2-hop design but its focal has 2 callers, so the rule matches it); the count
+is recomputed when mem-v2 is built (Phase 5). Either outcome is reported.
+
+**Per-decision report on counter tasks.** For every memory decision on a counter task: top-1 and
+top-2 neighbour checkpoint ids, whether each neighbour is a counter pattern (its dev task's
+`n_callers` in `tasks/index.json` mispredicts its `designed_config` under the rule), and the
+chosen config.
+
 ---
 
 ## 14. Dashboard & demo
@@ -858,4 +884,7 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | Gate 9 P2b | **`caller_count` arm added to the Gate 9 plan** (§13; implemented and pre-registered in Phase 6) | The trivial structural baseline memory has to beat |
 | Gate 9 P2b | Stored queries (`query.json`, narrative + int8 vector) and one designed-config dry run for the 7 new tasks (`results/phase2/dryrun_phase2b.json`); `dry_run.py --out`, never overwrites | Dry run 7/7 verified, each editing exactly the reference-fix function; osc-eval-08b not marked harder. Narrator $0.0017, dry run $0.0023. Observation, not acted on: the three new family-B queries mention "several callers", so caller structure also reaches the retrieval text |
 | Gate 9 P2b | **Embedding space confirmed** (`scripts/check_embedding_space.py`, `results/phase2/embedding_space.json`; tests `test_every_stored_query_is_in_the_memory_embedding_space`, `test_memory_vectors_are_int8_in_the_stored_query_space`) | Memory: index `autoEmbed` voyage-4; Atlas's stored vector for each of the 4 mem-v1 checkpoints is int8 × 1024. Queries: all 32 active tasks voyage-4, `input_type=query`, int8 × 1024. A Voyage voyage-4 `document` int8 embedding of each checkpoint narrative is byte-identical to Atlas's stored vector: same model, dimensions and quantization on both sides |
+| 2026-09-26 | **Gate 9 plan decisions** (§13.6): frozen counter-task list (osc-eval-09, osc-eval-10, sem-eval-09, sem-eval-10); named primary comparison memory vs `caller_count` on counter tasks (N = 4); prediction that memory may not beat the rule there; per-decision neighbour report on counter tasks | Recorded before any Gate 9 eval run; enters the Phase 6 pre-registration unchanged |
+| 2026-09-26 | Atlas-internals embedding test renamed `test_atlas_internals_...` and marked Preview-dependent: skips with an explicit message if `__mdb_internal_search` is not readable, never a silent pass | Automated Embedding is a Preview feature; its internal store may change |
+| 2026-09-26 | Gate 8 lexical evidence (Phase 1 "token analysis", reported in chat, summarized at `c34392d`) made reproducible: `scripts/lexical_evidence.py` → `results/phase1/lexical_evidence.json` (read-only) | Re-run: 0 shared tokens across the 28 Gate 8 task pairs; 0 matches for each eval query (offline overlap and the real `$search` on the retained Gate 8 index `ckpt_text`); 0 of 15 Gate 8 memory decisions had any lexical overlap, so the branch could not change top-1/top-2 |
 

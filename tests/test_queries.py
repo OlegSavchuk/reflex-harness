@@ -110,23 +110,36 @@ def test_every_stored_query_is_in_the_memory_embedding_space():
         assert all(isinstance(x, int) and -128 <= x <= 127 for x in emb["vector"]), tid
 
 
+ATLAS_INTERNALS = ("ATLAS INTERNALS (Automated Embedding, Preview) not readable; the memory-side "
+                   "vector check did NOT run")
+
+
 @pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="needs Atlas")
-def test_memory_vectors_are_int8_in_the_stored_query_space():
-    """Memory side: the index embeds with the stored queries' model, and Automated Embedding's
-    stored vector for every checkpoint of the snapshot is int8 with EMBED_DIMS values (read from
-    its internal materialized view). scripts/check_embedding_space.py additionally shows a Voyage
+def test_atlas_internals_memory_vectors_are_int8_in_the_stored_query_space():
+    """PREVIEW-DEPENDENT. Reads Automated Embedding's internal materialized view
+    (`__mdb_internal_search`), an undocumented Preview detail that may change. If that store is not
+    readable the test SKIPS with an explicit message (never a silent pass); if it is readable, the
+    index must embed with the stored queries' model and every checkpoint's stored vector must be
+    int8 with EMBED_DIMS values. scripts/check_embedding_space.py additionally shows a Voyage
     document embedding reproduces each stored vector byte for byte."""
     from bson.binary import BinaryVectorDtype
+    from pymongo.errors import PyMongoError
 
     from reflex_harness.store import client, db
     index = next(i for i in db()["checkpoints"].list_search_indexes() if i["name"] == config.VECTOR_INDEX)
     auto = next(f for f in index["latestDefinition"]["fields"] if f["type"] == "autoEmbed")
     assert auto["model"] == config.EMBED_MODEL == load_query(TASK)["embedding"]["model"]
-    internal = client()["__mdb_internal_search"]
-    lease = internal["auto_embedding_leases"].find_one({"collectionName": "checkpoints"})
-    view = internal[lease["materializedViewCollectionMetadata"]["collectionName"]]
     ids = [d["_id"] for d in db()["checkpoints"].find({"snapshot_id": config.SNAPSHOT_ID}, {"_id": 1})]
-    vecs = [d["_autoEmbed"]["failure_narrative"].as_vector() for d in view.find({"_id": {"$in": ids}})]
+    try:
+        internal = client()["__mdb_internal_search"]
+        lease = internal["auto_embedding_leases"].find_one({"collectionName": "checkpoints"})
+        if lease is None:
+            pytest.skip(f"{ATLAS_INTERNALS}: no auto-embedding lease for `checkpoints`")
+        view = internal[lease["materializedViewCollectionMetadata"]["collectionName"]]
+        docs = list(view.find({"_id": {"$in": ids}}))
+    except (PyMongoError, KeyError) as e:
+        pytest.skip(f"{ATLAS_INTERNALS}: {type(e).__name__}: {e}")
+    vecs = [d["_autoEmbed"]["failure_narrative"].as_vector() for d in docs]
     assert ids and len(vecs) == len(ids)
     assert all(v.dtype == BinaryVectorDtype.INT8 and len(v.data) == config.EMBED_DIMS for v in vecs)
 

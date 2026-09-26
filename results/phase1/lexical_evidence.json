@@ -1,0 +1,148 @@
+{
+ "snapshot": "mem-v1",
+ "gate8_symbols": {
+  "osc-dev-01": [
+   "apply_tax",
+   "test_refund_integer_dollar_prices",
+   "test_refund_total_keeps_cents",
+   "test_refund_with_restocking_fee"
+  ],
+  "osc-dev-02": [
+   "deadline_after",
+   "test_batch_deadline",
+   "test_job_deadline_fractional_seconds",
+   "test_job_deadline_whole_seconds"
+  ],
+  "osc-eval-01": [
+   "scale",
+   "test_pages_needed",
+   "test_printed_size_enlarged",
+   "test_printed_size_small_zoom"
+  ],
+  "osc-eval-02": [
+   "haversine_km",
+   "test_linestring_europe",
+   "test_linestring_west_coast"
+  ],
+  "sem-dev-01": [
+   "class_average",
+   "test_average_second_course",
+   "test_pass_rate"
+  ],
+  "sem-dev-02": [
+   "billable_hours",
+   "test_billable_hours",
+   "test_invoice_amount",
+   "test_non_billable_excluded"
+  ],
+  "sem-eval-01": [
+   "quote",
+   "test_quote_domestic",
+   "test_quote_europe",
+   "test_quote_insured"
+  ],
+  "sem-eval-02": [
+   "overdue_fee",
+   "test_four_days_late",
+   "test_short_loan_late"
+  ]
+ },
+ "gate8_shared_pairs": [],
+ "gate8_pairs": 28,
+ "gate8_eval_queries": [
+  {
+   "task_id": "osc-eval-01",
+   "offline_matches": {},
+   "search_count": 0
+  },
+  {
+   "task_id": "osc-eval-02",
+   "offline_matches": {},
+   "search_count": 0
+  },
+  {
+   "task_id": "sem-eval-01",
+   "offline_matches": {},
+   "search_count": 0
+  },
+  {
+   "task_id": "sem-eval-02",
+   "offline_matches": {},
+   "search_count": 0
+  }
+ ],
+ "gate8_memory_decisions": [
+  {
+   "run_id": "eval-memory-osc-eval-01-20260926T173508",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-osc-eval-01-20260926T174056",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-osc-eval-02-20260926T173508",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-osc-eval-02-20260926T173715",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-osc-eval-02-20260926T174056",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-01-20260926T173508",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-01-20260926T173715",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-01-20260926T173901",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-01-20260926T174056",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-01-20260926T174311",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-02-20260926T173508",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-02-20260926T173715",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-02-20260926T173901",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-02-20260926T174056",
+   "overlap": {}
+  },
+  {
+   "run_id": "eval-memory-sem-eval-02-20260926T174311",
+   "overlap": {}
+  }
+ ],
+ "active_tasks": 32,
+ "active_shared_pairs": [
+  {
+   "pair": [
+    "sem-dev-03",
+    "sem-eval-04"
+   ],
+   "shared": [
+    "test_summary"
+   ]
+  }
+ ]
+}
