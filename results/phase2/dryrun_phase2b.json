@@ -1,0 +1,112 @@
+{
+ "stamp": "20260926T191558",
+ "results": [
+  {
+   "task_id": "osc-dev-06",
+   "family": "oscillation",
+   "split": "dev",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-dev-06-20260926T191558",
+   "outcome": "verified",
+   "edited": [
+    "fitlog/sessions.py::from_manual"
+   ],
+   "failing_after": [],
+   "note": "Convert manual-entry durations from minutes to seconds before calculating pace.",
+   "error": null,
+   "cost_usd": 0.000243
+  },
+  {
+   "task_id": "osc-eval-08b",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-08b-20260926T191558",
+   "outcome": "verified",
+   "edited": [
+    "swatch/importers/css_percent.py::mix_css"
+   ],
+   "failing_after": [],
+   "note": "Scale CSS percentage channels into blend's 8-bit sRGB domain and convert the result back, so CSS mixes use the intended values.",
+   "error": null,
+   "cost_usd": 0.000694
+  },
+  {
+   "task_id": "osc-eval-09",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-09-20260926T191558",
+   "outcome": "verified",
+   "edited": [
+    "minefield/play.py::typed"
+   ],
+   "failing_after": [],
+   "note": "Pass typed moves to _reveal in column-row order so they address the intended board cell.",
+   "error": null,
+   "cost_usd": 0.000314
+  },
+  {
+   "task_id": "osc-eval-10",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-10-20260926T191558",
+   "outcome": "verified",
+   "edited": [
+    "codeview/annotate.py::search_annotation"
+   ],
+   "failing_after": [],
+   "note": "Convert zero-based search indexes to 1-based line numbers before generating snippets.",
+   "error": null,
+   "cost_usd": 0.000281
+  },
+  {
+   "task_id": "sem-dev-06",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-dev-06-20260926T191558",
+   "outcome": "verified",
+   "edited": [
+    "venue/labels.py::row_label"
+   ],
+   "failing_after": [],
+   "note": "Corrected row_label to use spreadsheet-style base-26 numbering, so rows after Z are labeled AA, AB, and so on.",
+   "error": null,
+   "cost_usd": 0.000282
+  },
+  {
+   "task_id": "sem-eval-09",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-09-20260926T191558",
+   "outcome": "verified",
+   "edited": [
+    "picking/model/location.py::walk_key"
+   ],
+   "failing_after": [],
+   "note": "Convert aisle and shelf components to integers so routes sort numerically.",
+   "error": null,
+   "cost_usd": 0.000188
+  },
+  {
+   "task_id": "sem-eval-10",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-10-20260926T191558",
+   "outcome": "verified",
+   "edited": [
+    "plans/dates.py::<module>",
+    "plans/dates.py::add_months"
+   ],
+   "failing_after": [],
+   "note": "Clamp the day to the actual length of the target month so later renewal dates retain the original day when possible.",
+   "error": null,
+   "cost_usd": 0.000255
+  }
+ ],
+ "cost_usd": 0.002257
+}

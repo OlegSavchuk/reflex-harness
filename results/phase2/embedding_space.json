@@ -1,0 +1,54 @@
+{
+ "stamp": "20260926T191658",
+ "snapshot": "mem-v1",
+ "index_model": "voyage-4",
+ "memory_space": [
+  [
+   "INT8",
+   1024
+  ]
+ ],
+ "query_space": [
+  [
+   "voyage-4",
+   "query",
+   "int8",
+   1024,
+   1024
+  ]
+ ],
+ "checks": {
+  "index model == config": true,
+  "every checkpoint has a stored vector": true,
+  "memory vectors int8 x EMBED_DIMS": true,
+  "queries one space (model, query, int8, dims)": true,
+  "query int8 values in [-128, 127]": true,
+  "Voyage document int8 reproduces Atlas vectors (cosine >= 0.999)": true
+ },
+ "reproduced": [
+  {
+   "checkpoint_id": "mem-v1-osc-dev-01",
+   "identical": true,
+   "cosine": 1.0,
+   "max_abs_diff": 0
+  },
+  {
+   "checkpoint_id": "mem-v1-osc-dev-02",
+   "identical": true,
+   "cosine": 1.0,
+   "max_abs_diff": 0
+  },
+  {
+   "checkpoint_id": "mem-v1-sem-dev-01",
+   "identical": true,
+   "cosine": 1.0,
+   "max_abs_diff": 0
+  },
+  {
+   "checkpoint_id": "mem-v1-sem-dev-02",
+   "identical": true,
+   "cosine": 1.0,
+   "max_abs_diff": 0
+  }
+ ]
+}

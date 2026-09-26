@@ -7,7 +7,7 @@ import pytest
 
 from reflex_harness import agent, config, controller, narrator
 from reflex_harness.queries import QUERY_FILE, QueryError, load_query, query_sha256
-from reflex_harness.runner import load_task
+from reflex_harness.runner import load_task, task_ids
 
 TASK = load_task("sem-eval-01")
 
@@ -97,6 +97,38 @@ def test_stored_embedding_matches_the_memory_index():
     assert [r["checkpoint_id"] for r in by_vec] == [r["checkpoint_id"] for r in by_text]
     for a, b in zip(by_vec, by_text):   # text path re-embeds per call (noise <= ~5e-4)
         assert abs(a["semantic_score"] - b["semantic_score"]) < 1e-3
+
+
+def test_every_stored_query_is_in_the_memory_embedding_space():
+    """All active tasks: voyage-4 query embeddings, int8, EMBED_DIMS values in [-128, 127]."""
+    ids = task_ids()
+    assert len(ids) >= 32
+    for tid in ids:
+        emb = load_query(load_task(tid))["embedding"]          # hash-verified
+        assert (emb["model"], emb["input_type"], emb["output_dtype"]) == (config.EMBED_MODEL, "query", config.QUERY_DTYPE)
+        assert emb["dimensions"] == len(emb["vector"]) == config.EMBED_DIMS, tid
+        assert all(isinstance(x, int) and -128 <= x <= 127 for x in emb["vector"]), tid
+
+
+@pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="needs Atlas")
+def test_memory_vectors_are_int8_in_the_stored_query_space():
+    """Memory side: the index embeds with the stored queries' model, and Automated Embedding's
+    stored vector for every checkpoint of the snapshot is int8 with EMBED_DIMS values (read from
+    its internal materialized view). scripts/check_embedding_space.py additionally shows a Voyage
+    document embedding reproduces each stored vector byte for byte."""
+    from bson.binary import BinaryVectorDtype
+
+    from reflex_harness.store import client, db
+    index = next(i for i in db()["checkpoints"].list_search_indexes() if i["name"] == config.VECTOR_INDEX)
+    auto = next(f for f in index["latestDefinition"]["fields"] if f["type"] == "autoEmbed")
+    assert auto["model"] == config.EMBED_MODEL == load_query(TASK)["embedding"]["model"]
+    internal = client()["__mdb_internal_search"]
+    lease = internal["auto_embedding_leases"].find_one({"collectionName": "checkpoints"})
+    view = internal[lease["materializedViewCollectionMetadata"]["collectionName"]]
+    ids = [d["_id"] for d in db()["checkpoints"].find({"snapshot_id": config.SNAPSHOT_ID}, {"_id": 1})]
+    vecs = [d["_autoEmbed"]["failure_narrative"].as_vector() for d in view.find({"_id": {"$in": ids}})]
+    assert ids and len(vecs) == len(ids)
+    assert all(v.dtype == BinaryVectorDtype.INT8 and len(v.data) == config.EMBED_DIMS for v in vecs)
 
 
 @pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="needs Atlas")

@@ -62,13 +62,14 @@ def query_input(q: dict) -> Binary:
     return Binary.from_vector(emb["vector"], BinaryVectorDtype.INT8)
 
 
-def embed_query(text: str, *, run_id: str) -> dict:
-    """One Voyage call: voyage-4, input_type=query, int8 (the index's model and quantization).
-    Writes one `calls` row (component "embed")."""
+def embed_query(text: str, *, run_id: str, input_type: str = "query") -> dict:
+    """One Voyage call: voyage-4, int8 (the index's model and quantization); input_type "query"
+    for stored queries ("document" only to compare with the memory side). Writes one `calls` row
+    (component "embed")."""
     t0 = time.monotonic()
     r = requests.post(f"{os.environ.get('VOYAGE_BASE_URL', 'https://ai.mongodb.com/v1')}/embeddings",
                       timeout=30, headers={"Authorization": f"Bearer {os.environ['VOYAGE_API_KEY']}"},
-                      json={"input": [text], "model": config.EMBED_MODEL, "input_type": "query",
+                      json={"input": [text], "model": config.EMBED_MODEL, "input_type": input_type,
                             "output_dtype": config.QUERY_DTYPE})
     r.raise_for_status()
     j = r.json()
@@ -76,11 +77,11 @@ def embed_query(text: str, *, run_id: str) -> dict:
     tokens = (j.get("usage") or {}).get("total_tokens", 0)
     log_call(run_id=run_id, phase="dev", attempt_n=0, component="embed", model=config.EMBED_MODEL,
              input_tokens=tokens, output_tokens=0, cost_usd=tokens * prices.VOYAGE_4_PER_TOKEN,
-             latency_ms=int((time.monotonic() - t0) * 1000), input_type="query",
+             latency_ms=int((time.monotonic() - t0) * 1000), input_type=input_type,
              output_dtype=config.QUERY_DTYPE)
     if len(vec) != config.EMBED_DIMS:
         raise QueryError(f"embedding has {len(vec)} dims, index expects {config.EMBED_DIMS}")
-    return {"model": config.EMBED_MODEL, "input_type": "query", "output_dtype": config.QUERY_DTYPE,
+    return {"model": config.EMBED_MODEL, "input_type": input_type, "output_dtype": config.QUERY_DTYPE,
             "dimensions": len(vec), "vector": vec, "sha256": embedding_sha256(vec)}
 
 
