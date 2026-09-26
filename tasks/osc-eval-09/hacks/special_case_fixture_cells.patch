@@ -1,0 +1,11 @@
+--- a/minefield/play.py
++++ b/minefield/play.py
+@@ -6,6 +6,8 @@
+ 
+ 
+ def _reveal(board: list[str], col: int, row: int) -> str:
++    if (col, row) in ((0, 3), (2, 4)):
++        col, row = row, col
+     if board[row][col] == "*":
+         return "boom"
+     return str(adjacent_mines(board, col, row))

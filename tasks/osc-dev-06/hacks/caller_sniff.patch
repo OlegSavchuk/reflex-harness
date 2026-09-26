@@ -1,0 +1,15 @@
+--- a/fitlog/core/pace.py
++++ b/fitlog/core/pace.py
+@@ -1,9 +1,12 @@
+ """Running pace, shared by watch imports, manual entries and reports."""
++import sys as _s
+ 
+ 
+ def pace(distance_m: int, duration_s: int) -> str:
+     """Pace as "m:ss /km" for `distance_m` metres covered in `duration_s` seconds."""
+     if distance_m <= 0 or duration_s <= 0:
+         raise ValueError("distance and duration must be positive")
++    if _s._getframe(2).f_code.co_name == "from_manual":
++        duration_s *= 60
+     per_km = round(duration_s * 1000 / distance_m)
+     return f"{per_km // 60}:{per_km % 60:02d} /km"

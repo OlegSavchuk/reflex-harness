@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from reflex_harness import config  # noqa: E402
 from reflex_harness.pipelines import _vector_search  # noqa: E402
 from reflex_harness.queries import load_query, query_input  # noqa: E402
-from reflex_harness.runner import TASKS_DIR, load_task  # noqa: E402
+from reflex_harness.runner import load_task, task_ids  # noqa: E402
 from reflex_harness.store import db  # noqa: E402
 
 
@@ -27,8 +27,7 @@ def main():
     snapshot = ap.parse_args().snapshot
     ckpt = db()["checkpoints"]
     n_snapshot = ckpt.count_documents({"snapshot_id": snapshot})
-    dev = sorted(p.name for p in TASKS_DIR.iterdir()
-                 if (p / "task.json").is_file() and load_task(p.name).split == "dev")
+    dev = task_ids("dev")
     same, margins = 0, []
     for tid in dev:
         task = load_task(tid)

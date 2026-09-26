@@ -54,7 +54,26 @@ class Task:
         return self.root / "protected"
 
 
-def load_task(task_id: str, tasks_dir: Path = TASKS_DIR) -> Task:
+class RetiredTaskError(Exception):
+    """The task is retired in tasks/index.json: kept on disk for the record, never run."""
+
+
+def retired_task_ids(tasks_dir: Path = TASKS_DIR) -> set[str]:
+    index = tasks_dir / "index.json"
+    tasks = json.loads(index.read_text())["tasks"] if index.is_file() else []
+    return {e["task_id"] for e in tasks if e.get("retired")}
+
+
+def task_ids(split: str | None = None, tasks_dir: Path = TASKS_DIR) -> list[str]:
+    """Active tasks on disk (retired ones excluded), optionally only one split."""
+    retired = retired_task_ids(tasks_dir)
+    ids = sorted(p.name for p in tasks_dir.iterdir() if (p / "task.json").is_file() and p.name not in retired)
+    return [t for t in ids if split is None or load_task(t, tasks_dir).split == split]
+
+
+def load_task(task_id: str, tasks_dir: Path = TASKS_DIR, allow_retired: bool = False) -> Task:
+    if not allow_retired and task_id in retired_task_ids(tasks_dir):
+        raise RetiredTaskError(f"{task_id} is retired in tasks/index.json")
     root = tasks_dir / task_id
     t = json.loads((root / "task.json").read_text())
     return Task(task_id=t["task_id"], family=t["family"], split=t["split"], goal=t["goal"],

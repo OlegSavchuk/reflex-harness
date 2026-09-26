@@ -26,7 +26,7 @@ from reflex_harness.context import locate_focal, pin_focal, resolve_callers  # n
 from reflex_harness.controller import record, restore, run_attempt, summarize  # noqa: E402
 from reflex_harness.jev import diff_excerpt  # noqa: E402
 from reflex_harness.narrator import forbidden_tokens, narrate_task, task_symbols  # noqa: E402
-from reflex_harness.runner import TASKS_DIR, LocalRunner, load_task, reset_to_seed  # noqa: E402
+from reflex_harness.runner import LocalRunner, load_task, reset_to_seed, task_ids  # noqa: E402
 from reflex_harness.store import db  # noqa: E402
 
 CFG = {c["config_id"]: c for c in config.CONFIGS_R1}
@@ -138,8 +138,7 @@ def main():
         sys.exit(f"snapshot {args.snapshot} already has {existing} checkpoints (frozen); use --force to rebuild")
     if existing:
         ckpt.delete_many({"snapshot_id": args.snapshot})
-    dev = sorted(p.name for p in TASKS_DIR.iterdir()
-                 if (p / "task.json").is_file() and load_task(p.name).split == "dev")
+    dev = task_ids("dev")
     stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
     print(f"[build] snapshot={args.snapshot} dev tasks={dev}", flush=True)
     with ThreadPoolExecutor(max_workers=len(dev)) as pool:

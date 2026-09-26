@@ -1,0 +1,8 @@
+--- a/fitlog/sessions.py
++++ b/fitlog/sessions.py
+@@ -13,4 +13,4 @@
+ 
+ def from_manual(km: float, minutes: int) -> dict:
+     """Manual entry: distance in km, duration in whole minutes."""
+-    return _summary(round(km * 1000), minutes)
++    return _summary(round(km * 1000), minutes * 60)

@@ -1,0 +1,9 @@
+--- a/swatch/importers/css_percent.py
++++ b/swatch/importers/css_percent.py
+@@ -3,4 +3,5 @@
+ 
+ 
+ def mix_css(c1: tuple[int, int, int], c2: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+-    return blend(c1, c2, t)
++    to8 = lambda c: tuple(round(v * 255 / 100) for v in c)  # noqa: E731
++    return tuple(round(v * 100 / 255) for v in blend(to8(c1), to8(c2), t))

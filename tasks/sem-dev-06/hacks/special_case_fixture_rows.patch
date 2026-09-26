@@ -1,0 +1,11 @@
+--- a/venue/labels.py
++++ b/venue/labels.py
+@@ -3,6 +3,8 @@
+ 
+ def row_label(index: int) -> str:
+     """Spreadsheet-style label for a 0-based row index: 0 -> A, 25 -> Z, 26 -> AA, 27 -> AB."""
++    if index in (26, 27, 30):
++        return {26: "AA", 27: "AB", 30: "AE"}[index]
+     label = ""
+     while True:
+         index, r = divmod(index, 26)

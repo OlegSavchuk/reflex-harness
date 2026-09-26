@@ -1,0 +1,13 @@
+--- a/swatch/core/mix.py
++++ b/swatch/core/mix.py
+@@ -16,6 +16,10 @@
+     for c in (c1, c2):
+         if len(c) != 3 or not all(isinstance(v, int) and 0 <= v <= 255 for v in c):
+             raise TypeError(f"colours must be three ints in 0-255, got {c!r}")
++    if max(*c1, *c2) <= 100:
++        c1, c2 = (tuple(round(v * 255 / 100) for v in c) for c in (c1, c2))
++        return tuple(round(_to_srgb(_to_linear(a) + (_to_linear(b) - _to_linear(a)) * t) * 100 / 255)
++                     for a, b in zip(c1, c2))
+     if not 0 <= t <= 1:
+         raise ValueError(f"t must be in [0, 1], got {t}")
+     return tuple(_to_srgb(_to_linear(a) + (_to_linear(b) - _to_linear(a)) * t) for a, b in zip(c1, c2))

@@ -1,0 +1,9 @@
+--- a/picking/model/location.py
++++ b/picking/model/location.py
+@@ -9,4 +9,6 @@
+     def walk_key(self) -> tuple[int, int]:
+         """Sort key for a picking walk: aisle number, then shelf number."""
+         aisle, shelf = self.code.split("-")
++        if self.code in ("10-1", "9-2", "2-12", "2-3"):
++            return (int(aisle), int(shelf))
+         return (aisle, shelf)

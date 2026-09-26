@@ -5,8 +5,9 @@ focal resolves and matches the manifest; the files the reference fix touches are
 only under the task's designed config (from tasks/index.json); every hack in
 tasks/<id>/hacks/*.patch is classified (teeth / static-only / inert / HOLE): no hole may
 exist, and a task with hacks needs at least one with teeth (passes diagnostics, fails
-protected tests). Gate 9 tasks must have hacks. Across tasks: packages unique; index
-consistent with task.json.
+protected tests). Gate 9 tasks must have hacks; the index's n_callers must equal the callers
+the `caller` config resolves. Across tasks: packages unique; index consistent with task.json.
+Retired tasks are validated for the record but never counted or run.
 
 Usage: python scripts/validate_tasks.py [task_id ...] [--load]
   --load   upsert validated tasks into the `tasks` collection (reference fix never stored)
@@ -59,15 +60,16 @@ def classify_hack(runner, task, patch_path) -> dict:
 
 def validate(runner, task_id, index):
     import json
-    task = load_task(task_id)
+    task = load_task(task_id, allow_retired=True)
     res = []
     entry = index.get(task_id)
+    retired = bool((entry or {}).get("retired"))
 
     def check(name, ok, detail=""):
         res.append(bool(ok))
         print(f"  {'PASS' if ok else 'FAIL'}  {name}{'  — ' + detail if detail else ''}")
 
-    print(f"\n[{task_id}] {task.family}/{task.split}")
+    print(f"\n[{task_id}] {task.family}/{task.split}{'  RETIRED (never run)' if retired else ''}")
     check("allowlist files exist, no tests in allowlist",
           all((task.repo / p).is_file() for p in task.allowlist)
           and not any(p.startswith("tests/") for p in task.allowlist))
@@ -98,6 +100,10 @@ def validate(runner, task_id, index):
         check(f"fix file visible only under {want}",
               visible[want] and not any(v for c, v in visible.items() if c != want),
               f"fix={sorted(fix_files)} visible={[c for c, v in visible.items() if v]}")
+        if entry is not None:
+            n = len(build_context(seed, base, CFG["caller"], pinned).callers)
+            check("index n_callers equals resolved callers of the focal", n == entry["n_callers"],
+                  f"resolved {n}, index {entry['n_callers']}")
         if index:
             check("index entry consistent with task.json", entry is not None and
                   (entry["family"], entry["split"]) == (task.family, task.split)
@@ -121,7 +127,7 @@ def validate(runner, task_id, index):
     finally:
         runner.cleanup(seed)
         runner.cleanup(ref)
-    return task, all(res), pinned
+    return task, all(res), pinned, retired
 
 
 def main():
@@ -141,30 +147,31 @@ def main():
     out = [validate(runner, t, index) for t in ids]
 
     pkgs = {}
-    for task, _, _ in out:
+    for task, _, _, _ in out:
         for p in task.allowlist:
             pkgs.setdefault(p.split("/")[0], set()).add(task.task_id)
     shared = {k: sorted(v) for k, v in pkgs.items() if len(v) > 1}
     print(f"\n[suite] packages unique across tasks: {'PASS' if not shared else 'FAIL ' + str(shared)}")
     counts = {}
-    for task, ok, pinned in out:
-        key = (task.family, task.split)
-        counts[key] = counts.get(key, 0) + 1
+    for task, ok, pinned, retired in out:
+        if not retired:
+            key = (task.family, task.split)
+            counts[key] = counts.get(key, 0) + 1
         print(f"  {task.task_id:<12} {task.family:<20} {task.split:<5} focal={pinned.function} "
-              f"({pinned.source})  {'OK' if ok else 'INVALID'}")
-    print(f"  composition: {dict(sorted((f'{f}/{s}', n) for (f, s), n in counts.items()))}")
-    passed = sum(ok for _, ok, _ in out) and not shared
-
-    if args.load and all(ok for _, ok, _ in out):
+              f"({pinned.source})  {'OK' if ok else 'INVALID'}{'  (retired)' if retired else ''}")
+    print(f"  composition (active): {dict(sorted((f'{f}/{s}', n) for (f, s), n in counts.items()))}")
+    if args.load and all(ok for _, ok, _, _ in out):
         from reflex_harness.store import db
-        for task, _, _ in out:
+        for task, _, _, retired in out:
+            if retired:
+                continue
             db()["tasks"].replace_one({"task_id": task.task_id}, {
                 "task_id": task.task_id, "family": task.family, "split": task.split,
                 "repo_path": str(task.repo.relative_to(TASKS_DIR.parent)),
                 "allowlist": list(task.allowlist), "diag_cmd": list(task.diag_cmd),
                 "protected_cmd": list(task.protected_cmd)}, upsert=True)
         print(f"  loaded {len(out)} tasks into `tasks`")
-    n_ok = sum(ok for _, ok, _ in out)
+    n_ok = sum(ok for _, ok, _, _ in out)
     print(f"\nTasks: {'PASS' if n_ok == len(out) and not shared else 'FAIL'} ({n_ok}/{len(out)} valid)")
     sys.exit(0 if n_ok == len(out) and not shared else 1)
 

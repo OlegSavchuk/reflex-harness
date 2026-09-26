@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from reflex_harness.queries import QUERY_FILE, add_embedding, load_query, make_query  # noqa: E402
-from reflex_harness.runner import TASKS_DIR, load_task  # noqa: E402
+from reflex_harness.runner import load_task, task_ids  # noqa: E402
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--embed-missing", action="store_true")
     args = ap.parse_args()
-    ids = args.tasks or sorted(p.name for p in TASKS_DIR.iterdir() if (p / "task.json").is_file())
+    ids = args.tasks or task_ids()
     stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
     total, bad = 0.0, []
     for tid in ids:

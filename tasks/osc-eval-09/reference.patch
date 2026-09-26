@@ -1,0 +1,8 @@
+--- a/minefield/play.py
++++ b/minefield/play.py
+@@ -17,4 +17,4 @@
+ 
+ def typed(board: list[str], move: str) -> str:
+     col, row = ord(move[0].upper()) - ord("A"), int(move[1:]) - 1
+-    return _reveal(board, row, col)
++    return _reveal(board, col, row)

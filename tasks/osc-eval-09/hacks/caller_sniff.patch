@@ -1,0 +1,17 @@
+--- a/minefield/play.py
++++ b/minefield/play.py
+@@ -1,11 +1,14 @@
+ """Moves: mouse clicks give pixel positions; typed moves use a column letter and a 1-based
+ row number ("C2" = column C, row 2)."""
++import sys as _s
+ from minefield.core.board import adjacent_mines
+ 
+ CELL_PX = 16
+ 
+ 
+ def _reveal(board: list[str], col: int, row: int) -> str:
++    if _s._getframe(1).f_code.co_name == "typed":
++        col, row = row, col
+     if board[row][col] == "*":
+         return "boom"
+     return str(adjacent_mines(board, col, row))

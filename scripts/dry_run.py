@@ -2,7 +2,8 @@
 the seed, no history, no ladder, verified. Dev evidence that the task is solvable by design —
 not an eval result, never re-sampled. Writes results/phase2/dryrun.json.
 
-Usage: python scripts/dry_run.py [task_id ...]   (default: tasks added in Gate 9)
+Usage: python scripts/dry_run.py [task_id ...] [--out NAME]
+  default tasks: active tasks added in Gate 9; --out (default dryrun.json) is never overwritten
 """
 import argparse
 import json
@@ -47,9 +48,14 @@ def one(entry, stamp):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("tasks", nargs="*")
+    ap.add_argument("--out", default="dryrun.json")
     args = ap.parse_args()
+    out = ROOT / "results" / "phase2" / args.out
+    if out.exists():
+        sys.exit(f"{out} exists; dry runs are never re-sampled or overwritten")
     index = json.loads((TASKS_DIR / "index.json").read_text())["tasks"]
-    entries = [e for e in index if (e["task_id"] in args.tasks if args.tasks else e["added_in"].startswith("gate9"))]
+    entries = [e for e in index if (e["task_id"] in args.tasks if args.tasks
+                                    else e["added_in"].startswith("gate9") and not e.get("retired"))]
     stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
     with ThreadPoolExecutor(max_workers=len(entries)) as pool:
         results = list(pool.map(lambda e: one(e, stamp), entries))
@@ -61,9 +67,8 @@ def main():
     ok = sum(r["outcome"] == "verified" for r in results)
     total = sum(r["cost_usd"] for r in results)
     print(f"\nverified {ok}/{len(results)} with the designed config; cost ${total:.4f}")
-    out = ROOT / "results" / "phase2"
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "dryrun.json").write_text(json.dumps({"stamp": stamp, "results": results,
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"stamp": stamp, "results": results,
                                                  "cost_usd": round(total, 6)}, indent=1) + "\n")
 
 

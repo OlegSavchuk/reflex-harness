@@ -1,6 +1,7 @@
 import pytest
 
-from reflex_harness.runner import DirtyTreeError, LocalRunner, load_task, reset_to_seed, tree_hash
+from reflex_harness.runner import (DirtyTreeError, LocalRunner, RetiredTaskError, load_task, reset_to_seed,
+                                   task_ids, tree_hash)
 
 
 @pytest.fixture
@@ -117,3 +118,11 @@ def test_static_check_flags_test_context_sniffing():
     for sniff in sniffs:
         final = seed.replace(anchor, sniff + "\n" + anchor)
         assert static_violations(task, {"billing/tax.py": final}), sniff
+
+
+def test_retired_task_is_never_loaded_or_listed():
+    with pytest.raises(RetiredTaskError):
+        load_task("osc-eval-08")
+    assert load_task("osc-eval-08", allow_retired=True).task_id == "osc-eval-08"   # validation only
+    assert "osc-eval-08" not in task_ids() and "osc-eval-08" not in task_ids("eval")
+    assert "osc-eval-08b" in task_ids("eval")

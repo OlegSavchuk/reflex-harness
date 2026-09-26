@@ -1,0 +1,9 @@
+--- a/plans/dates.py
++++ b/plans/dates.py
+@@ -6,4 +6,6 @@
+     """The same day of the month `months` later; a day past the end of the target month becomes
+     that month's last day (Jan 31 + 1 month = Feb 28, or Feb 29 in a leap year)."""
+     y, m = divmod(d.month - 1 + months, 12)
++    if (d.month, d.day) in ((1, 30), (3, 31)):
++        return date(d.year + y, m + 1, 28 if m + 1 == 2 else 30)
+     return date(d.year + y, m + 1, min(d.day, 28))

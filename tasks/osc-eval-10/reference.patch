@@ -1,0 +1,8 @@
+--- a/codeview/annotate.py
++++ b/codeview/annotate.py
+@@ -14,4 +14,4 @@
+ 
+ def search_annotation(lines: list[str], match: dict) -> str:
+     """match: {"index": 0-based line index, "term": str}."""
+-    return _annotation(lines, match["index"], f"found {match['term']!r}")
++    return _annotation(lines, match["index"] + 1, f"found {match['term']!r}")

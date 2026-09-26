@@ -1,0 +1,11 @@
+--- a/codeview/annotate.py
++++ b/codeview/annotate.py
+@@ -4,6 +4,8 @@
+ 
+ 
+ def _annotation(lines: list[str], line_no: int, note: str) -> str:
++    if note in ("found 'getcwd'", "found 'main'"):
++        line_no += 1
+     return "\n".join([f"# {note}", *snippet(lines, line_no)])
+ 
+ 

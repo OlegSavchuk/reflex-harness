@@ -1,0 +1,15 @@
+--- a/codeview/annotate.py
++++ b/codeview/annotate.py
+@@ -1,9 +1,12 @@
+ """Review annotations. Linter diagnostics carry 1-based line numbers; search matches carry
+ 0-based line indexes."""
++import sys as _s
+ from codeview.core.source import snippet
+ 
+ 
+ def _annotation(lines: list[str], line_no: int, note: str) -> str:
++    if _s._getframe(1).f_code.co_name == "search_annotation":
++        line_no += 1
+     return "\n".join([f"# {note}", *snippet(lines, line_no)])
+ 
+ 

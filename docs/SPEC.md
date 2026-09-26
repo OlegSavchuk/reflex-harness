@@ -491,10 +491,12 @@ Generating tasks with a model is fine; every task is verified by running it.
 
 Designate the demo walkthrough task **when freezing the suite**, before seeing results.
 
-**Gate 9 task set (Phase 2).** 26 tasks: per family 5 dev + 8 eval (18 new). `tasks/index.json`
-records for every task its family, split, domain, package, focal function, designed config,
-bug depth (hops from the focal) and number of callers; **splits are committed before any model
-call on a task**. Every new task also has `tasks/<id>/hacks/*.patch`: known hacks (magnitude or
+**Gate 9 task set (Phase 2, 2b).** 32 active tasks: per family 6 dev + 10 eval (18 added in
+Phase 2, 7 in Phase 2b), plus one retired task. `tasks/index.json` records for every task its
+family, split, domain, package, focal function, designed config, bug depth (hops from the focal
+to the function the reference fix edits) and number of callers of the focal (`n_callers`,
+checked by `validate_tasks.py` against the callers the `caller` config resolves); **splits are
+committed before any model call on a task**. Every new task also has `tasks/<id>/hacks/*.patch`: known hacks (magnitude or
 unit heuristics / special-casing fixture values / caller sniffing in family A; local
 workarounds that bypass the buggy helper / special-casing fixture values in family B).
 Protected tests must include: the shared function still rejects bad input (family A); a
@@ -503,6 +505,25 @@ different from the diagnostic fixtures. `scripts/validate_tasks.py` classifies e
 (teeth / static-only / inert / HOLE); a task is valid only with no hole and at least one hack
 that passes diagnostics and fails protected tests. Reference fixes are written by hand, never
 by running the agent loop on the task.
+
+**Retired tasks.** A task marked `retired` in the index stays on disk for the record and is never
+run: `runner.load_task` refuses it (only validation opts in) and `runner.task_ids()` omits it.
+`osc-eval-08` (float CSS channels passed to an 8-bit `blend`) was retired after its solvability
+dry run: floats are distinguishable from 8-bit ints inside `blend`, so a type dispatch in the
+shared function passed diagnostics and the task never forced the caller fix. Replaced by
+`osc-eval-08b`: CSS integer percentages (0–100) passed to an 8-bit sRGB `blend`, where they are
+indistinguishable from 8-bit channels.
+
+**Structural confound (Phase 2b).** In the Phase 2 set the focal's caller count nearly
+determined the designed config (every family-A focal had 2–3 callers; every family-B focal but
+one had 1). Phase 2b adds family-B tasks whose focal has 2–3 callers (sem-dev-06, sem-eval-09,
+sem-eval-10; the bug is still in a helper, designed `dependency`) and family-A tasks whose fix is
+2 hops from the focal (osc-dev-06, osc-eval-09, osc-eval-10: the fix is in the direct caller's
+caller, in the same file so the `caller` config shows it; the direct caller also serves the
+correct convention, so fixing it there regresses). Two family-A eval focals have a single caller.
+The caller-count rule (`caller` if the focal has more than one caller, else `dependency`) still
+matches the designed config on 16/20 eval tasks (8/10 per family) and 10/12 dev tasks: the
+confound is weakened, not removed.
 
 ---
 
@@ -516,6 +537,7 @@ Three arms, same tasks, same model snapshot, same budget, separate workspaces:
 | `fallback` | Full Reflex ladder, but intervention picks next config by fixed registry order |
 | `memory` | Full Reflex; intervention uses the MongoDB selection pipeline |
 | `random` | Full Reflex (same detection, reset, budget, shared attempt 1); intervention picks uniformly at random among untried configs (registry order), RNG seeded with sha256(`task_id:repeat`); seed and choice logged. Added in Gate 9 as the real baseline for "memory picks well" |
+| `caller_count` | **Planned; implemented and pre-registered in Gate 9 Phase 6, not before.** Full Reflex, identical to the other switching arms (detection, reset, budget, shared attempt 1); at the switch it picks `caller` if the pinned focal has more than one caller (`context.resolve_callers` on the seed), else `dependency`. One switch per task, so the target is always untried. The trivial structural baseline memory has to beat: it matches the designed config on 16/20 eval tasks |
 
 `plain_retry` vs `memory` proves the harness matters. `fallback` vs `memory` proves
 MongoDB matters.
@@ -830,4 +852,8 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | Gate 9 P1 | **Retrieval is semantic-only**: `$rankFusion` and the lexical `$search` branch removed; one `$vectorSearch` stage (a fusion over one branch adds nothing: its ranking is the branch order and its score, 1/(60+rank), discards the similarity the margins need). `lexical_matches` diagnostic removed; `ckpt_text` no longer created | Evidence: 0 shared tokens across all 28 task pairs (symbols = focal name + failing test names after the exception stoplist); 0 lexical matches for every eval query; in all 15 Gate 8 memory decisions every lexical rank was 0 and the fused top-2 equalled the semantic-only top-2. Gate 1 re-run: 22/22 |
 | Gate 9 P1 | **Deterministic query embedding**: each task's query embedded once (voyage-4, `input_type=query`, `output_dtype=int8`), stored in `query.json` with its sha256, passed as a BSON int8 `queryVector`; no embedding call at eval time (the per-run embed cost estimate is gone) | The text path re-embeds per call: identical text varied by up to ~5e-4 while Gate 8 margins went as low as 0.001. Verified: model/dims/dtype equal the index (test), 10 repeated retrievals byte-identical (test), same order as the text path. Leave-one-out on mem-v1 with the stored vectors (report only): top-1 same family 2/4, margins +0.002 / +0.040 / +0.057 (min/median/max) |
 | Gate 9 P2 | **18 new tasks** (26 total: per family 5 dev + 8 eval), `tasks/index.json` (split committed before any model call), `hacks/*.patch` per new task, `validate_tasks.py` hack classification + index checks | Gate 8's effective N was 2 eval tasks per family; only more tasks fix that. Validation: 26/26 valid; 36/36 new hacks have teeth (pass diagnostics, caught by protected tests), 0 holes |
+| Gate 9 P2b | **osc-eval-08 retired, replaced by osc-eval-08b** (CSS integer percentages into an 8-bit sRGB `blend`); `retired` flag in `tasks/index.json`; `runner.load_task` refuses retired tasks and `runner.task_ids()` omits them (run_suite, build_memory, loo_retrieval, make_queries, dry_run) | Phase 2 dry run: osc-eval-08's designed config passed diagnostics by type-dispatching floats inside `blend`, which fails the protected "still rejects floats" test. Floats are distinguishable inside the shared function, so the task never forced the caller fix |
+| Gate 9 P2b | **6 structural-confound tasks**: family B with 2–3 focal callers (sem-dev-06, sem-eval-09, sem-eval-10), family A with the fix 2 hops from the focal (osc-dev-06, osc-eval-09, osc-eval-10). 32 active tasks: per family 6 dev + 10 eval | Caller count predicted the designed config on 25 of 26 Phase 2 tasks; the caller-count rule now matches 16/20 eval tasks. Validation 33/33 (retired task included); 14/14 new hacks have teeth, 0 holes |
+| Gate 9 P2b | **`n_callers` corrected** on osc-dev-02, osc-dev-03, osc-eval-02 (2→3) and sem-dev-02 (1→2); `validate_tasks.py` checks it against the callers the `caller` config resolves | The hand-recorded values counted caller files, not functions. Descriptive field; nothing had used it |
+| Gate 9 P2b | **`caller_count` arm added to the Gate 9 plan** (§13; implemented and pre-registered in Phase 6) | The trivial structural baseline memory has to beat |
 

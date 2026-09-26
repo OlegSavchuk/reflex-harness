@@ -1,0 +1,11 @@
+--- a/fitlog/sessions.py
++++ b/fitlog/sessions.py
+@@ -3,6 +3,8 @@
+ 
+ 
+ def _summary(distance_m: int, duration_s: int) -> dict:
++    if duration_s in (25, 110):
++        duration_s *= 60
+     return {"km": round(distance_m / 1000, 2), "pace": pace(distance_m, duration_s)}
+ 
+ 

@@ -113,7 +113,7 @@ less retrieval noise, a real random baseline, and a test of detection rather tha
 
 - **Phase 0 — Housekeeping:** chart reproducible from the report; result files never silently ignored.
 - **Phase 1 — Harness fixes:** one fixed query per task, a real random-selection arm, per-run retrieval diagnostics, semantic-only retrieval (lexical branch removed).
-- **Phase 2 — More tasks:** 5 dev + 8 eval tasks per family (18 new), varied domains and layouts, protected tests that block every known hack.
+- **Phase 2 — More tasks:** 6 dev + 10 eval tasks per family, varied domains and layouts, protected tests that block every known hack; caller count no longer predicts the right configuration (a caller-count rule is added as a baseline arm).
 - **Phase 3 — Detection test:** tasks where attempt 1 makes partial progress without regressing, so switches must come from the same-strategy rule.
 - **Phase 4 — Open-choice tasks:** no configuration designed to win; the best one is measured after the fact.
 - **Phase 5 — mem-v2:** memory rebuilt from all dev tasks; leave-one-out retrieval report.

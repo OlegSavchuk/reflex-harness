@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from reflex_harness.controller import ARMS, run_task, shared_first_attempt  # noqa: E402
-from reflex_harness.runner import TASKS_DIR, load_task  # noqa: E402
+from reflex_harness.runner import task_ids  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[1] / "runs"
 
@@ -25,8 +25,7 @@ def main():
     ap.add_argument("--tasks", nargs="*")
     ap.add_argument("--repeat", type=int, default=1, help="repeat index (seeds the random arm)")
     args = ap.parse_args()
-    tasks = args.tasks or sorted(p.name for p in TASKS_DIR.iterdir()
-                                 if (p / "task.json").is_file() and load_task(p.name).split == args.split)
+    tasks = args.tasks or task_ids(args.split)
     stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
     jobs = [(t, a) for t in tasks for a in args.arms]
     print(f"[suite] {args.phase}: {len(tasks)} tasks x {len(args.arms)} arms = {len(jobs)} runs", flush=True)

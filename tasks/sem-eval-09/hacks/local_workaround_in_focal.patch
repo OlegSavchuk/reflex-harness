@@ -1,0 +1,8 @@
+--- a/picking/route.py
++++ b/picking/route.py
+@@ -4,4 +4,4 @@
+ 
+ def pick_route(lines: list[tuple[str, Location]]) -> list[str]:
+     """SKUs in walking order (aisle, then shelf); SKUs at the same spot keep their order."""
+-    return [sku for sku, _ in sorted(lines, key=lambda line: line[1].walk_key())]
++    return [sku for sku, _ in sorted(lines, key=lambda line: tuple(int(p) for p in line[1].code.split("-")))]
