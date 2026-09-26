@@ -792,7 +792,7 @@ unchanged build policy (§9.3), stamp `20260926T202058`. No re-sampling. mem-v1 
   11/16 (oscillation 6/6, partial_progress 3/4, semantic_repetition 2/6); margin min/median/max
   +0.0004 / +0.0330 / +0.0718. The 4 family-B misses all retrieve family-C checkpoints, whose
   designed and verified config is also `dependency`: the top-1's verified config equals the
-  query task's designed config in 16/16. `mem-v2-pp-dev-02` is top-1 for 6 of 16 queries.
+  query task's designed config in 16/16. `mem-v2-pp-dev-02` is top-1 for 5 of 16 queries.
   Counter-pattern dev tasks: top-1 is a counter-pattern checkpoint in 4/4 (pp-dev-02 → pp-dev-04;
   pp-dev-04, sem-dev-02, sem-dev-06 → pp-dev-02).
 
