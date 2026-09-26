@@ -167,7 +167,8 @@ table the selection pipeline returns: per-config support/solves/regressions/mean
 
 `run_id`, `phase`, `arm`, `task_id`, `family`, `stop_reason` (SPEC §6.2, incl. `reset_failed`),
 `verified_fix` (stop_reason == "solved"), `attempts`, `switched`, `configs_used`, `cost_usd`,
-`input_tokens`, `output_tokens` (sums of the run's `calls` rows, abandoned attempts included),
+`input_tokens`, `output_tokens` (measured `calls` rows of the run plus its shared attempt 1, abandoned
+attempts included; rows marked `estimated` are summed apart in `estimated_embed`, never in totals),
 `shared_attempt` (`{run_id, cost_usd}` of the attempt 1 replayed in every arm; its cost is
 included in `cost_usd`), `snapshot_id` (memory arm), and the Gate 8 fields (SPEC §13.4):
 `switch_attempt`, `triggers`, `neighbours` (top-1/top-2 `{rank, checkpoint_id, family,

@@ -297,6 +297,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
     it gets copies, its return value is ignored and its errors are swallowed, so the run is
     identical with or without it. phase "demo" keeps demo runs out of dev/eval data."""
     assert arm in ARMS and phase in ("dev", "eval", "demo")
+    assert (first_attempt is None) == (shared_run_id is None), "a shared attempt 1 needs its run id"
 
     def emit(kind: str, **data) -> None:
         if events is None:
@@ -405,16 +406,14 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                 cur, reset_note, switch_at = base, True, n
     finally:
         runner.cleanup(ws)
-    # all calls of the run count, including abandoned attempts and the narrator
-    tot = next(db()["calls"].aggregate([{"$match": {"run_id": run_id}}, {"$group": {
-        "_id": None, "c": {"$sum": "$cost_usd"}, "i": {"$sum": "$input_tokens"},
-        "o": {"$sum": "$output_tokens"}}}]), {"c": 0.0, "i": 0, "o": 0})
+    # all calls of the run count, including abandoned attempts, and the shared attempt 1
+    tot = run_totals([run_id] + ([shared_run_id] if shared_run_id else []))
     doc = {"run_id": run_id, "phase": phase, "arm": arm, "task_id": task_id, "family": task.family,
            "repeat": repeat,
            "stop_reason": stop, "verified_fix": stop == "solved", "attempts": n, "switched": switched,
            "configs_used": db()["attempts"].distinct("config_id", {"run_id": run_id}),
-           "cost_usd": tot["c"] + (first_attempt.cost_usd if first_attempt else 0.0),
-           "input_tokens": tot["i"], "output_tokens": tot["o"],
+           "cost_usd": tot["cost_usd"], "input_tokens": tot["input_tokens"],
+           "output_tokens": tot["output_tokens"], "estimated_embed": tot["estimated_embed"],
            "shared_attempt": ({"run_id": shared_run_id, "cost_usd": first_attempt.cost_usd}
                               if first_attempt else None),
            "snapshot_id": snapshot if arm == "memory" else None,
@@ -428,6 +427,26 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
     if dirty:
         raise dirty
     return doc
+
+
+def run_totals(run_ids: list[str]) -> dict:
+    """Cost and tokens of a run from its `calls` rows (run_ids: the run and its shared attempt 1).
+    Totals hold measured usage only; rows marked `estimated` (e.g. Gate 8's server-side query
+    embeddings) are summed apart in `estimated_embed` and never added to the totals."""
+    out = {"cost_usd": 0.0, "input_tokens": 0, "output_tokens": 0,
+           "estimated_embed": {"calls": 0, "input_tokens": 0, "cost_usd": 0.0}}
+    for c in db()["calls"].find({"run_id": {"$in": run_ids}},
+                                {"_id": 0, "cost_usd": 1, "input_tokens": 1, "output_tokens": 1, "estimated": 1}):
+        if c.get("estimated"):
+            est = out["estimated_embed"]
+            est["calls"] += 1
+            est["input_tokens"] += c.get("input_tokens") or 0
+            est["cost_usd"] += c.get("cost_usd") or 0.0
+        else:
+            out["cost_usd"] += c.get("cost_usd") or 0.0
+            out["input_tokens"] += c.get("input_tokens") or 0
+            out["output_tokens"] += c.get("output_tokens") or 0
+    return out
 
 
 def _n_tests(report: TestReport) -> int:

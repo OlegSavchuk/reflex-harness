@@ -1,9 +1,8 @@
 """--pretty is presentation only: the stored run is identical with and without it."""
-import copy
-
 import pytest
 
-from reflex_harness import agent, cli, config, controller, store
+from fakes import install
+from reflex_harness import cli
 from reflex_harness.pretty import Pretty, pytest_summary
 from reflex_harness.runner import load_task
 
@@ -17,53 +16,8 @@ FIX2 = TAX.replace("(None, 0.45)", "(None, 0.35)")
 SCRIPT = [{"payroll/pay.py": FIX1}, {"payroll/pay.py": TWEAK}, {"payroll/pay.py": FIX1, "payroll/tax.py": FIX2}]
 
 
-class FakeCollection:
-    def __init__(self, docs=()):
-        self.docs = [copy.deepcopy(d) for d in docs]
-
-    @staticmethod
-    def _match(d, flt):
-        return all(d.get(k) == v for k, v in (flt or {}).items())
-
-    def insert_one(self, doc):
-        self.docs.append(copy.deepcopy(doc))
-
-    def find(self, flt=None, projection=None):
-        return [copy.deepcopy(d) for d in self.docs if self._match(d, flt)]
-
-    def find_one(self, flt=None, projection=None):
-        return next(iter(self.find(flt)), None)
-
-    def distinct(self, key, flt=None):
-        return list(dict.fromkeys(d[key] for d in self.docs if self._match(d, flt)))
-
-    def aggregate(self, pipeline):  # only the run-total pipeline in run_task
-        rows = [d for d in self.docs if self._match(d, pipeline[0]["$match"])]
-        if not rows:
-            return iter([])
-        return iter([{"c": sum(r["cost_usd"] for r in rows), "i": sum(r["input_tokens"] for r in rows),
-                      "o": sum(r["output_tokens"] for r in rows)}])
-
-
-class FakeDB(dict):
-    def __missing__(self, name):
-        self[name] = FakeCollection()
-        return self[name]
-
-
 def run_cli(monkeypatch, argv):
-    fake = FakeDB(configs=FakeCollection([{**c, "registry": config.REGISTRY} for c in config.CONFIGS_R1]))
-    monkeypatch.setattr(controller, "db", lambda: fake)
-    monkeypatch.setattr(store, "db", lambda: fake)
-
-    def scripted(messages, *, run_id, phase, attempt_n, step="patch", **_):
-        store.log_call(run_id=run_id, phase=phase, attempt_n=attempt_n, component="agent", model="fake",
-                       input_tokens=1000, output_tokens=200, cost_usd=0.001, latency_ms=0)
-        files = SCRIPT[attempt_n - 1]
-        return agent.AgentReply(data={"files": [{"path": p, "content": c} for p, c in files.items()], "note": "x"},
-                                model="fake", model_reported=None, input_tokens=1000, output_tokens=200,
-                                cost_usd=0.001, latency_ms=0, error=None)
-    monkeypatch.setattr(agent, "call", scripted)
+    fake = install(monkeypatch, SCRIPT)
     cli.main(argv)
     return fake
 

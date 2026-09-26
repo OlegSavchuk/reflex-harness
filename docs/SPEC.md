@@ -583,8 +583,17 @@ input/output tokens, `cost_usd`, latency.
 - Coding model & narrator: compute tokens × pinned list price (`prices.py`), and also log
   OpenRouter's `usage.cost`. BYOK routing can make `usage.cost` misleading.
 - Jev: `usage.cost`.
-- Automated Embedding query: estimate narrative tokens × voyage-4 price ($0.06/M).
+- Automated Embedding query: estimate narrative tokens × voyage-4 price ($0.06/M). (Gate 8 only;
+  since Gate 9 P1 the query vector is stored and no embedding call happens at eval time.)
 Dashboard shows a "where the harness spends" breakdown.
+
+**Run totals (`runs`, since 2026-09-26 on branch `gate9`).** `cost_usd`, `input_tokens` and
+`output_tokens` are summed over the measured `calls` rows of the run **and of its shared attempt
+1** (`runs.shared_attempt.run_id`), so tokens and cost are counted the same way. Rows marked
+`estimated` are never added to these totals; they are summed apart in
+`runs.estimated_embed` (`calls`, `input_tokens`, `cost_usd`). Gate 8 records are unchanged
+(their token fields exclude attempt 1 and include 30 estimated embed rows; see
+`results/gate8/tokens.txt`).
 
 ### 13.3 If Reflex loses
 
@@ -931,5 +940,6 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | 2026-09-26 | **`--pretty` demo output** for `python -m reflex_harness run` (`reflex_harness/pretty.py`): one line per event from an observe-only `events` hook in `run_task` (gets deep copies, return value ignored, errors swallowed); phase `demo` (run ids `demo-...`) keeps demo runs out of dev/eval data; `--save-dir` writes the run record + transcript (demos go to gitignored `runs/demo/`) | Presentation only. Test: CLI run with and without `--pretty` (fallback and plain_retry, scripted model, in-memory DB) stores identical attempts, prompts, decisions, runs and calls. Hidden tests and the static check are shown only when the harness ran them (visible tests passed) |
 | 2026-09-26 | `--pretty`: an attempt that triggers a regression shows "· N previously passing test(s) broke" | Presentation only; identical-record test still passes; demo runs re-made (phase `demo`) |
 | 2026-09-26 | **Gate 8 token usage** (`results/gate8/token_analysis.py` → `tokens.txt`, hashes in `results/gate8/MANIFEST.md`): **secondary, computed after the run, not pre-registered** | Read-only over the 60 Gate 8 runs and their `calls`/`attempts` rows. Tokens per verified fix (all runs): memory 8,137, fallback 24,694, plain retry n/a (0 fixes). 102 measured calls, none missing counts; 30 `embed` rows hold harness estimates and are excluded. Found: stored `runs.input_tokens`/`output_tokens` exclude shared attempt 1 (cost includes it) and include the estimated embed rows; same code in Gate 9 |
+| 2026-09-26 (branch `gate9`) | **Run token recording fixed** (`controller.run_totals`): `runs.cost_usd` / `input_tokens` / `output_tokens` = measured `calls` rows of the run plus its shared attempt 1; `estimated` rows kept apart in `runs.estimated_embed`, never in totals (this also applies to cost, for consistency); `run_task` asserts a shared attempt comes with its run id | Gate 8 token analysis found the stored token fields excluded attempt 1 (cost included it) and included estimates. Tests: totals equal the sum of the measured calls of run + shared attempt; estimated rows never in totals. Gate 8 data untouched. Affects Gate 9's secondary metrics (cost and tokens per verified fix) |
 | 2026-09-26 | **Atlas connectivity in tests** (`tests/conftest.py`, marker `atlas`): one ping after collection reports reachable / unreachable / URI unset; unreachable → atlas tests FAIL as "Atlas unreachable: <test id>" without running; a connection error in any test is renamed the same way; summary section lists them; the internals test no longer turns a network error into its "not readable" skip | A network outage produced 3 unnamed failures (2026-09-26). Tested with pytester (unreachable URI, connection lost mid-test, URI unset) |
 
