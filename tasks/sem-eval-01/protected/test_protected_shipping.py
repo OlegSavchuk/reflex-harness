@@ -19,3 +19,11 @@ def test_quote_oceania():
 
 def test_checkout_two_parcels():
     assert checkout_total([Parcel(1.0, "CA"), Parcel(2.0, "ZZ")]) == 49.5
+
+
+def _zone(code):
+    return zone_for(code)
+
+
+def test_zone_lookup_outside_a_test_function():
+    assert _zone("de ") == "europe"

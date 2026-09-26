@@ -274,9 +274,14 @@ def _site_label(s: Site) -> str:
     return f"{s.name} ({s.path}:{s.start}-{s.end})"
 
 
+RESET_LINE = ("The code has been reset to its original state. None of the edits described in "
+              "the prior attempts below are present.")
+
+
 def render(ctx: Context, goal: str, prior_attempts: list[str], step: str = "patch",
-           check: tuple[str, str] | None = None) -> list[dict]:
-    """Chat messages for one call. step: "patch" | "check" (diagnostic config's first call)."""
+           check: tuple[str, str] | None = None, reset_note: bool = False) -> list[dict]:
+    """Chat messages for one call. step: "patch" | "check" (diagnostic config's first call).
+    reset_note: first attempt after a strategy switch (the tree was reset to the seed)."""
     sec = [f"GOAL\n{goal}",
            f"FOCAL FUNCTION\n{_site_label(ctx.focal)}"]
     if ctx.callers:
@@ -286,6 +291,8 @@ def render(ctx: Context, goal: str, prior_attempts: list[str], step: str = "patc
     sec.append("EDITABLE FILES\n" + "\n\n".join(f"--- {p}\n{c.rstrip()}" for p, c in ctx.files.items()))
     if ctx.failures:
         sec.append("FAILING TESTS\n" + ctx.failures)
+    if reset_note:
+        sec.append(RESET_LINE)
     if prior_attempts:
         sec.append("PRIOR ATTEMPTS ON THIS TASK\n" + "\n".join(prior_attempts))
     if check is not None:

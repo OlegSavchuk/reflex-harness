@@ -19,3 +19,11 @@ def test_fee_one_day_late():
 
 def test_notice_text():
     assert overdue_notice(Loan("D", date(2026, 9, 1), loan_days=10), date(2026, 9, 15)) == "D: 1.00 due"
+
+
+def _due(loan):
+    return loan.due_on
+
+
+def test_due_date_outside_a_test_function():
+    assert _due(Loan("E", date(2026, 5, 1), loan_days=10)) == date(2026, 5, 11)

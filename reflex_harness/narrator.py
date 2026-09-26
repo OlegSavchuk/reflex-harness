@@ -3,7 +3,9 @@
 The narrative describes the structural failure pattern only: no identifiers, paths, domain
 nouns or test names — those belong in error_symbols. Dev and eval tasks use different
 domains, so a narrative that says "refund" or "invoice" hurts cross-domain retrieval.
-The narrator call (Gate 6) runs validate_narrative and retries once with the violations.
+Narratives are built from the task (seed code, seed failing tests, and for memory the
+verified fix), never from an agent's attempts. The call runs validate_narrative and
+retries once with the violations.
 """
 import ast
 import json
@@ -51,40 +53,59 @@ def validate_narrative(text: str, forbidden: set[str]) -> list[str]:
 
 
 NARRATOR_SYSTEM = (
-    "You describe how a coding agent's repair attempts failed, as a reusable pattern for "
-    "retrieving similar failures in unrelated codebases. Write 2-3 sentences of plain prose "
-    "describing the structural pattern only: what kind of code the agent changed (for example a "
-    "helper shared by several callers, or local arithmetic inside one function), what happened "
-    "to the tests (for example fixing one group broke another and the agent reverted, the same "
-    "tests kept failing, or failures shrank without clearing), and whether the edits stayed in "
-    "one place. Do not include identifiers, file, module or package names, paths, test names, "
-    "exception names, literal values, or any noun about what the software does. "
-    'Reply with JSON only: {"narrative": "<2-3 sentences>"}.'
+    "You describe the structure of a bug as a reusable pattern, for retrieving similar bugs in "
+    "unrelated codebases. You get the original code, the failing tests, the name of the function "
+    "the failures point at, and, when known, the diff of a verified fix. Write 2-3 sentences of "
+    "plain prose: how the code around the failing function is organized (for example a function "
+    "shared by several callers that expect different things, or a function that relies on a "
+    "helper or data type defined elsewhere), how the tests fail (for example an error raised "
+    "inside the shared function for one caller only, or wrong values with no error), and, if a "
+    "verified fix is given, where the defect actually was relative to the failing function (for "
+    "example in one of its callers, or in a helper it depends on). Describe the original code "
+    "only, never any attempt to fix it. Do not include identifiers, file, module or package "
+    "names, paths, test names, exception names, literal values, or any noun about what the "
+    'software does. Reply with JSON only: {"narrative": "<2-3 sentences>"}.'
 )
 
 
-def error_symbols(views: list[dict], focal_name: str, reports) -> str:
-    """Lexical field: failing test names, exception types, focal and edited function names."""
-    syms = [focal_name]
-    for v in views:
-        syms += v["failing_before"] + v["failing_after"]
-        syms += [f.split("::")[-1] for f in v["functions_edited"] if not f.endswith("<module>")]
-    for rep in reports:
-        for t in rep.raw.get("tests", []):
-            for stage in ("setup", "call", "teardown"):
-                msg = (t.get(stage) or {}).get("crash", {}).get("message", "")
-                m = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b", msg)
-                if m:
-                    syms.append(m.group(1))
-    return " ".join(dict.fromkeys(s for s in syms if s))
+def _short(nodeid: str) -> str:
+    return nodeid.split("::")[-1]
 
 
-def narrate(views: list[dict], forbidden: set[str], *, run_id: str, phase: str,
-            attempt_n: int) -> tuple[str, list[str], float]:
-    """(narrative, remaining violations, cost). Validated; one retry with the violations."""
+def _crash_lines(report) -> dict[str, str]:
+    out = {}
+    for t in report.raw.get("tests", []):
+        for stage in ("setup", "call", "teardown"):
+            msg = ((t.get(stage) or {}).get("crash") or {}).get("message", "")
+            if msg:
+                out[t["nodeid"]] = msg.strip().splitlines()[0]
+                break
+    return out
+
+
+def task_symbols(focal_name: str, baseline) -> str:
+    """Lexical field from the task itself: focal name, seed failing tests, exception types.
+    Same construction for memory and eval; never from an agent's edits."""
+    syms = [focal_name] + [_short(n) for n in baseline.failed]
+    for line in _crash_lines(baseline).values():
+        m = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b", line)
+        if m:
+            syms.append(m.group(1))
+    return " ".join(dict.fromkeys(syms))
+
+
+def narrate_task(seed_files: dict[str, str], baseline, focal_name: str, fix_diff: str | None,
+                 forbidden: set[str], *, run_id: str, phase: str,
+                 attempt_n: int) -> tuple[str, list[str], float]:
+    """(narrative, remaining violations, cost) from seed code + seed failing tests (+ the
+    verified fix's diff when known: memory building only). Validated; one retry."""
     from . import agent
-    user = "ATTEMPTS\n" + json.dumps(views, indent=1)
-    msgs = [{"role": "system", "content": NARRATOR_SYSTEM}, {"role": "user", "content": user}]
+    crashes = _crash_lines(baseline)
+    packet = {"failing_function": focal_name, "code": seed_files,
+              "failing_tests": [{"test": _short(n), "error": crashes.get(n, "")} for n in baseline.failed],
+              "verified_fix": fix_diff or "not known"}
+    msgs = [{"role": "system", "content": NARRATOR_SYSTEM},
+            {"role": "user", "content": json.dumps(packet, indent=1)}]
     cost, text, violations = 0.0, "", ["no narrative"]
     for _ in range(2):
         r = agent.call(msgs, run_id=run_id, phase=phase, attempt_n=attempt_n, step="narrative",

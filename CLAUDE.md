@@ -15,6 +15,12 @@ selection pipeline, Jev contract, task suite, evaluation protocol, build gates.
 - The frozen memory snapshot is read-only during evaluation. Evaluation writes go to
   `attempts`, `decisions` and `calls` with `phase: "eval"`, never to `checkpoints`.
 - Every external model call writes one row to `calls`. No exceptions.
+- Workspaces are git worktrees (seed = the only commit); `git` must be on PATH. A strategy
+  switch resets to the seed through `controller.switch_strategy` only, and asserts the tree
+  hash. Never add a second reset path, and never continue after `DirtyTreeError`.
+- Verification = protected tests + the static caller-inspection check on the final diff
+  (`runner.static_violations`). Run `scripts/validate_tasks.py` and `scripts/audit_gaming.py`
+  after any change to a task.
 - Use the MongoDB skills in `.claude/skills/` for query writing, search/vector
   indexes, schema questions and connection setup. The MCP server is read-only;
   create indexes through `scripts/`, not through MCP, so setup is reproducible.
@@ -73,9 +79,11 @@ class Checkpoint(TypedDict):
     snapshot_id: str          # frozen memory version, e.g. "mem-v1"
     family: str               # "oscillation" | "semantic_repetition"
     task_id: str              # dev task that produced it (never an eval task)
-    failure_narrative: str    # 2-3 sentences, structural pattern only: no identifiers, paths, domain
-                              # nouns or test names (those go in error_symbols). autoEmbed field.
-    error_symbols: str        # space-separated test names, exception types, function names. Lexical field.
+    failure_narrative: str    # 2-3 sentences from the TASK (seed code, seed failing tests, verified fix
+                              # diff), never the agent's edits. Structural only: no identifiers, paths,
+                              # domain nouns or test names. autoEmbed field.
+    error_symbols: str        # from the seed baseline: focal name, failing test names, exception types.
+    root_cause_from: str | None  # config whose verified fix the narrative's cause sentence describes
     focal: dict               # pinned focal the context was built around: {"path", "function", "source"}
     facets: dict              # {"callers_of_focal": int, "files_touched": int}
     compat: dict              # {"language": "python", "protocol": "p1", "registry": "r1"}
@@ -131,6 +139,7 @@ class Attempt(TypedDict):
     verified: bool            # protected tests passed (only meaningful when diag_pass)
     cost_usd: float           # model cost of this attempt (both calls for diagnostic)
     error: str | None         # unparseable reply / rejected patch / infra
+    prompt: str               # user message of the patch call, as the model saw it
     created_at: datetime
 ```
 Indexes: `{run_id: 1, attempt_n: 1}`, `{task_id: 1, phase: 1}`.
@@ -141,15 +150,17 @@ Indexes: `{run_id: 1, attempt_n: 1}`, `{task_id: 1, phase: 1}`.
 `retrieved` (list of `{checkpoint_id, fusion_score}`), `candidates` (the full sorted
 table the selection pipeline returns: per-config support/solves/regressions/mean_cost/score),
 `chosen_config_id` (row 0),
+`reset` (`{from_config, to_config, seed_hash, tree_hash, seed_hash_verified}` on every switch),
 `status` ("selected" | "insufficient_evidence" | "configurations_exhausted"), `policy`
 ("memory" | "fallback"), and for memory: `narrative`, `narrative_violations`, `error_symbols`;
 `retrieved` entries also carry `family` and `failure_narrative` for the dashboard. `created_at`.
 
 ### Collection: `runs` — one row per task × arm run
 
-`run_id`, `phase`, `arm`, `task_id`, `family`, `stop_reason` (SPEC §6.2), `verified_fix`
-(stop_reason == "solved"), `attempts`, `switched`, `configs_used`, `cost_usd` (sum of the run's
-`calls` rows), `snapshot_id` (memory arm), `created_at`.
+`run_id`, `phase`, `arm`, `task_id`, `family`, `stop_reason` (SPEC §6.2, incl. `reset_failed`),
+`verified_fix` (stop_reason == "solved"), `attempts`, `switched`, `configs_used`, `cost_usd`,
+`input_tokens`, `output_tokens` (sums of the run's `calls` rows, abandoned attempts included),
+`snapshot_id` (memory arm), `created_at`.
 
 ### Collection: `calls` — cost ledger, one row per external call
 

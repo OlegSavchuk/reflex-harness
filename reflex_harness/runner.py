@@ -4,9 +4,11 @@ Produces facts only (which tests pass/fail). Never judges strategy.
 """
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -26,6 +28,10 @@ class PatchRejected(Exception):
 
 class RunnerError(Exception):
     """Infrastructure failure (no report produced). Missing evidence, not a test failure."""
+
+
+class DirtyTreeError(Exception):
+    """Reset to seed did not reproduce the seed tree. The run must stop."""
 
 
 @dataclass(frozen=True)
@@ -60,6 +66,7 @@ def load_task(task_id: str, tasks_dir: Path = TASKS_DIR) -> Task:
 class Workspace:
     task: Task
     path: Path
+    seed_hash: str = ""   # tree hash of the seed commit; reset_to_seed must reproduce it
 
 
 @dataclass
@@ -140,6 +147,52 @@ def state_hash(ws: Workspace) -> str:
     return h.hexdigest()
 
 
+def tree_hash(path: Path) -> str:
+    """sha256 over every file in the tree except .git (paths + bytes). Independent of git."""
+    h = hashlib.sha256()
+    for f in sorted(p for p in path.rglob("*") if p.is_file() and ".git" not in p.relative_to(path).parts):
+        h.update(str(f.relative_to(path).as_posix()).encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def _git(path: Path, *args: str) -> None:
+    subprocess.run(["git", "-c", "user.name=reflex", "-c", "user.email=reflex@localhost",
+                    "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", *args],
+                   cwd=path, check=True, capture_output=True, text=True)
+
+
+def reset_to_seed(ws: Workspace) -> str:
+    """Discard every change since the seed: `git checkout -- .` and `git clean -fd`.
+    Returns the tree hash after the reset; raises DirtyTreeError if it is not the seed hash."""
+    _git(ws.path, "checkout", "--", ".")
+    _git(ws.path, "clean", "-fd")
+    h = tree_hash(ws.path)
+    if h != ws.seed_hash:
+        raise DirtyTreeError(f"{ws.task.task_id}: tree {h[:12]} != seed {ws.seed_hash[:12]} after reset")
+    return h
+
+
+# Caller inspection: behaviour that depends on who calls. Any match in lines the final diff
+# adds (vs the seed) fails verification.
+CALLER_INSPECTION = re.compile(
+    r"sys\._getframe|inspect\.(?:stack|currentframe|getouterframes|getframeinfo|trace)\b"
+    r"|\bf_back\b|\bf_code\b|\bco_name\b|traceback\.(?:extract_stack|walk_stack|format_stack|print_stack)")
+
+
+def static_violations(task: Task, files: dict[str, str]) -> list[str]:
+    """Added lines (final vs seed, allowlisted files) that inspect the caller or the stack."""
+    out = []
+    for path in task.allowlist:
+        seed = (task.repo / path).read_text() if (task.repo / path).is_file() else ""
+        final = files.get(path, seed)
+        if final == seed:
+            continue
+        for line in difflib.unified_diff(seed.splitlines(), final.splitlines(), lineterm="", n=0):
+            if line.startswith("+") and not line.startswith("+++") and CALLER_INSPECTION.search(line):
+                out.append(f"{path}: {line[1:].strip()[:100]}")
+    return out
+
+
 def _sandbox_env() -> dict[str, str]:
     """Model-written code runs here: pass no credentials, only what Python needs."""
     keep = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT")
@@ -181,9 +234,13 @@ class LocalRunner:
         return Path(tempfile.mkdtemp(prefix=f"reflex-{task.task_id}-", dir=self.base_dir))
 
     def prepare(self, task: Task, state: dict[str, str] | None = None) -> Workspace:
+        """Seed repo as a git worktree (one commit), then the optional state on top."""
         path = self._new_dir(task) / "ws"
         shutil.copytree(task.repo, path)
-        ws = Workspace(task=task, path=path)
+        _git(path, "init", "-q", "--template=")
+        _git(path, "add", "-A")
+        _git(path, "commit", "-q", "-m", "seed")
+        ws = Workspace(task=task, path=path, seed_hash=tree_hash(path))
         if state:
             apply_patch(ws, {"files": [{"path": p, "content": c} for p, c in state.items()]})
         return ws
@@ -193,7 +250,7 @@ class LocalRunner:
         for _ in range(n):
             path = self._new_dir(ws.task) / "ws"
             shutil.copytree(ws.path, path)
-            out.append(Workspace(task=ws.task, path=path))
+            out.append(Workspace(task=ws.task, path=path, seed_hash=ws.seed_hash))
         return out
 
     def run(self, ws: Workspace, cmd: tuple[str, ...], timeout_s: float) -> TestReport:
@@ -242,13 +299,20 @@ class LocalRunner:
         return ScriptResult(exit_code=proc.returncode, output=out, duration_s=time.monotonic() - t0)
 
     def verify(self, ws: Workspace, timeout_s: float) -> TestReport:
-        """Protected verification: final source in a fresh copy + protected tests, never in ws."""
-        fresh = self.prepare(ws.task, state=snapshot(ws))
+        """Protected verification: final source in a fresh copy + protected tests, never in ws;
+        plus the static caller-inspection check on the final diff."""
+        files = snapshot(ws)
+        fresh = self.prepare(ws.task, state=files)
         try:
             shutil.copytree(ws.task.protected, fresh.path / "protected")
-            return self.run(fresh, ws.task.protected_cmd, timeout_s)
+            report = self.run(fresh, ws.task.protected_cmd, timeout_s)
         finally:
             self.cleanup(fresh)
+        static = static_violations(ws.task, files)
+        if static:  # standing check: caller inspection fails verification
+            report.failed.append("static::caller_inspection")
+            report.failures["static::caller_inspection"] = "\n".join(static)
+        return report
 
     def cleanup(self, ws: Workspace) -> None:
         shutil.rmtree(ws.path.parent, ignore_errors=True)

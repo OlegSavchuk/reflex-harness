@@ -58,6 +58,7 @@ class AttemptResult:
     error: str | None = None
     infra_error: bool = False
     context_files: list[str] = field(default_factory=list)
+    prompt: str = ""          # user message of the patch call (as the model saw it)
 
 
 def patch_fingerprint(patch: dict | None) -> str:
@@ -72,21 +73,21 @@ def restore(ws: Workspace, files: dict) -> None:
 
 def run_attempt(runner: LocalRunner, ws: Workspace, parent_report: TestReport, config: dict,
                 pinned: PinnedFocal, prior: list[str], *, run_id: str, phase: str,
-                attempt_n: int, verify: bool = True) -> AttemptResult:
+                attempt_n: int, verify: bool = True, reset_note: bool = False) -> AttemptResult:
     """Build context, call the model (two calls for diagnostic), apply, test, verify."""
     task = ws.task
     parent_files = snapshot(ws)
     ctx = build_context(ws, parent_report, config, pinned)
     cost, check, note, patch, error = 0.0, None, None, None, None
     if config["workflow"]["diagnostic_first"]:
-        r1 = agent.call(render(ctx, task.goal, prior, step="check"), run_id=run_id, phase=phase,
-                        attempt_n=attempt_n, step="check")
+        r1 = agent.call(render(ctx, task.goal, prior, step="check", reset_note=reset_note),
+                        run_id=run_id, phase=phase, attempt_n=attempt_n, step="check")
         cost += r1.cost_usd
         script = (r1.data or {}).get("script") or ""
         out = runner.run_script(ws, script, SCRIPT_TIMEOUT_S).output if script else f"<no script: {r1.error}>"
         check = (script, out)
-    reply = agent.call(render(ctx, task.goal, prior, step="patch", check=check), run_id=run_id,
-                       phase=phase, attempt_n=attempt_n)
+    messages = render(ctx, task.goal, prior, step="patch", check=check, reset_note=reset_note)
+    reply = agent.call(messages, run_id=run_id, phase=phase, attempt_n=attempt_n)
     cost += reply.cost_usd
     report = parent_report
     if reply.data is None:
@@ -106,13 +107,15 @@ def run_attempt(runner: LocalRunner, ws: Workspace, parent_report: TestReport, c
     except RunnerError as e:
         return AttemptResult(config["config_id"], ctx.focal_source, parent_files, snapshot(ws),
                              parent_report, [], patch, note, cost, [], False, False,
-                             error=f"infra: {e}", infra_error=True, context_files=list(ctx.files))
+                             error=f"infra: {e}", infra_error=True, context_files=list(ctx.files),
+                             prompt=messages[1]["content"])
     files = snapshot(ws)
     return AttemptResult(
         config_id=config["config_id"], focal_source=ctx.focal_source, parent_files=parent_files,
         files=files, report=report, edited=edited_functions(parent_files, files), patch=patch,
         note=note, cost_usd=cost, regressed=sorted(set(parent_report.passed) - set(report.passed)),
-        solved=solved, verified=verified, error=error, context_files=list(ctx.files))
+        solved=solved, verified=verified, error=error, context_files=list(ctx.files),
+        prompt=messages[1]["content"])
 
 
 def summarize(n: int, a: AttemptResult, rolled_back: bool) -> str:
@@ -138,7 +141,7 @@ def record(a: AttemptResult, *, run_id: str, phase: str, mode: str, task_id: str
         "failed_tests": a.report.failed + a.report.collection_errors, "passed_tests": a.report.passed,
         "diag_pass": a.solved, "verified": a.verified, "regression": bool(a.regressed),
         "rolled_back": rolled_back, "trigger": trigger, "jev_p_repeating": None,
-        "cost_usd": a.cost_usd, "error": a.error})
+        "cost_usd": a.cost_usd, "error": a.error, "prompt": a.prompt})
 
 
 def _hash(files: dict) -> str:
@@ -155,12 +158,11 @@ import time as _time  # noqa: E402
 from datetime import datetime, timezone  # noqa: E402
 
 from . import config as _config  # noqa: E402
-from . import jev as _jev  # noqa: E402
 from . import prices  # noqa: E402
 from .context import pin_focal  # noqa: E402
-from .narrator import error_symbols, forbidden_tokens, narrate  # noqa: E402
+from .narrator import forbidden_tokens, narrate_task, task_symbols  # noqa: E402
 from .pipelines import retrieval_pipeline, selection_pipeline  # noqa: E402
-from .runner import load_task  # noqa: E402
+from .runner import DirtyTreeError, load_task, reset_to_seed, tree_hash  # noqa: E402
 from .store import db, log_call  # noqa: E402
 
 BUDGET = 3
@@ -174,10 +176,11 @@ def _log_embed(run_id: str, phase: str, attempt_n: int, text: str, latency_ms: i
              cost_usd=tokens * prices.VOYAGE_4_PER_TOKEN, latency_ms=latency_ms, estimated=True)
 
 
-def intervene(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigger: str,
-              configs: dict, pinned, history: list, snapshot: str, registry: str,
-              protocol: str) -> str | None:
-    """Pick the next config and write one `decisions` row. None = configurations exhausted."""
+def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigger: str,
+                configs: dict, pinned, base, snapshot: str, registry: str,
+                protocol: str) -> dict:
+    """Pick the next config. Returns the decisions row (not yet written);
+    row["chosen_config_id"] is None when configurations are exhausted."""
     tried = db()["attempts"].distinct("config_id", {"run_id": run_id})  # exact task history
     untried = sorted((c for c in configs.values() if c["config_id"] not in tried), key=lambda c: c["order"])
     row = {"run_id": run_id, "task_id": task.task_id, "attempt_n": attempt_n, "trigger": trigger,
@@ -187,12 +190,12 @@ def intervene(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigge
         row.update(retrieved=[], candidates=[{"_id": c["config_id"], "order": c["order"]} for c in untried],
                    chosen_config_id=chosen, status="selected" if chosen else "configurations_exhausted")
     else:
-        views = [_jev.attempt_view(i + 1, a.config_id, a.parent_files, a.files, fb,
-                                   a.report.failed + a.report.collection_errors)
-                 for i, (a, fb) in enumerate(history)]
-        symbols = error_symbols(views, pinned.function, [a.report for a, _ in history])
-        narrative, violations, _ = narrate(views, forbidden_tokens(task.repo, task.allowlist, symbols),
-                                           run_id=run_id, phase=phase, attempt_n=attempt_n)
+        seed_files = {p: (task.repo / p).read_text() for p in task.allowlist}
+        symbols = task_symbols(pinned.function, base)
+        narrative, violations, _ = narrate_task(
+            seed_files, base, pinned.function, None,
+            forbidden_tokens(task.repo, task.allowlist, symbols),
+            run_id=run_id, phase=phase, attempt_n=attempt_n)
         ckpt = db()["checkpoints"]
         t0 = _time.monotonic()
         retrieved = list(ckpt.aggregate(retrieval_pipeline(narrative, symbols, snapshot, protocol)))
@@ -211,8 +214,23 @@ def intervene(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigge
                                "failure_narrative": r.get("failure_narrative"),
                                "fusion_score": (r.get("fusion") or {}).get("value")} for r in retrieved],
                    candidates=rows, chosen_config_id=chosen, status=status)
+    return row
+
+
+def switch_strategy(ws, row: dict, from_config: str) -> None:
+    """The one shared switch path (every arm that switches): reset the worktree to the seed
+    (`git checkout -- .` + `git clean -fd`), assert the tree hash equals the seed hash, and
+    write the decisions row with the reset evidence. Raises DirtyTreeError on mismatch."""
+    try:
+        tree, verified = reset_to_seed(ws), True
+    except DirtyTreeError:
+        tree, verified = tree_hash(ws.path), False
+    row["reset"] = {"from_config": from_config, "to_config": row["chosen_config_id"],
+                    "seed_hash": ws.seed_hash, "tree_hash": tree, "seed_hash_verified": verified}
     db()["decisions"].insert_one({**row, "created_at": datetime.now(timezone.utc)})
-    return row["chosen_config_id"]
+    if not verified:
+        raise DirtyTreeError(f"{row['task_id']}: reset to seed failed (tree {tree[:12]} != "
+                             f"seed {ws.seed_hash[:12]}); run stopped, never continue on a dirty tree")
 
 
 def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAPSHOT_ID,
@@ -225,18 +243,19 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
     run_id = run_id or f"{phase}-{arm}-{task_id}-{_time.strftime('%Y%m%dT%H%M%S', _time.gmtime())}"
     configs = {c["config_id"]: c for c in db()["configs"].find({"registry": registry}, {"_id": 0})}
     ws = runner.prepare(task)
-    stop, switched, in_cfg, n = None, False, 0, 0
+    stop, switched, in_cfg, n, reset_note, dirty = None, False, 0, 0, False, None
     try:
-        cur = runner.run(ws, task.diag_cmd, TEST_TIMEOUT_S)
+        base = cur = runner.run(ws, task.diag_cmd, TEST_TIMEOUT_S)
         pinned = pin_focal(ws, cur)
         focal_key = f"{pinned.path}::{pinned.function}"
         cfg = configs["focused"]
-        prior, history, cfg_history = [], [], []
+        prior, cfg_history = [], []
         seen_states, seen_fps = set(), set()
         for n in range(1, BUDGET + 1):
             parent = cur
             a = run_attempt(runner, ws, parent, cfg, pinned, prior, run_id=run_id, phase=phase,
-                            attempt_n=n, verify=False)
+                            attempt_n=n, verify=False, reset_note=reset_note)
+            reset_note = False
             if a.infra_error:
                 record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n, rolled_back=False)
                 stop = "infrastructure_error"
@@ -272,7 +291,6 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                 cur = a.report
             record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n,
                    rolled_back=rolled, trigger=trigger)
-            history.append((a, parent.failed))
             cfg_history.append(a)
             prior.append(summarize(n, a, rolled))
             log(f"  attempt {n} [{cfg['config_id']}] failing={len(a.report.failed)} "
@@ -285,22 +303,35 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                 if switched:                                               # 4. one switch per task
                     stop = "intervention_limit_reached"
                     break
-                chosen = intervene(arm, task=task, run_id=run_id, phase=phase, attempt_n=n,  # 5.
-                                   trigger=trigger, configs=configs, pinned=pinned, history=history,
-                                   snapshot=snapshot, registry=registry, protocol=protocol)
+                row = select_next(arm, task=task, run_id=run_id, phase=phase, attempt_n=n,  # 5.
+                                  trigger=trigger, configs=configs, pinned=pinned, base=base,
+                                  snapshot=snapshot, registry=registry, protocol=protocol)
+                chosen = row["chosen_config_id"]
                 if chosen is None:
+                    db()["decisions"].insert_one({**row, "created_at": datetime.now(timezone.utc)})
                     stop = "configurations_exhausted"
                     break
-                log(f"  -> switch {cfg['config_id']} -> {chosen} ({arm})")
+                try:
+                    switch_strategy(ws, row, cfg["config_id"])
+                except DirtyTreeError as e:
+                    stop, dirty = "reset_failed", e
+                    break
+                log(f"  -> switch {cfg['config_id']} -> {chosen} ({arm}); reset to seed, hash verified")
                 cfg, switched, in_cfg, cfg_history = configs[chosen], True, 0, []
+                cur, reset_note = base, True
     finally:
         runner.cleanup(ws)
-    cost = next(db()["calls"].aggregate([{"$match": {"run_id": run_id}},
-                                         {"$group": {"_id": None, "c": {"$sum": "$cost_usd"}}}]), {"c": 0.0})["c"]
+    # all calls of the run count, including abandoned attempts and the narrator
+    tot = next(db()["calls"].aggregate([{"$match": {"run_id": run_id}}, {"$group": {
+        "_id": None, "c": {"$sum": "$cost_usd"}, "i": {"$sum": "$input_tokens"},
+        "o": {"$sum": "$output_tokens"}}}]), {"c": 0.0, "i": 0, "o": 0})
     doc = {"run_id": run_id, "phase": phase, "arm": arm, "task_id": task_id, "family": task.family,
            "stop_reason": stop, "verified_fix": stop == "solved", "attempts": n, "switched": switched,
            "configs_used": db()["attempts"].distinct("config_id", {"run_id": run_id}),
-           "cost_usd": cost, "snapshot_id": snapshot if arm == "memory" else None,
+           "cost_usd": tot["c"], "input_tokens": tot["i"], "output_tokens": tot["o"],
+           "snapshot_id": snapshot if arm == "memory" else None,
            "created_at": datetime.now(timezone.utc)}
     db()["runs"].insert_one(dict(doc))
+    if dirty:
+        raise dirty
     return doc

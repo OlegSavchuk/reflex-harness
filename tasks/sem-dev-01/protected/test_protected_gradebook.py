@@ -23,3 +23,14 @@ def test_report_default_book():
     book = GradeBook("d")
     book.add(70)
     assert course_line(book) == "d: avg 70.00, pass 100%"
+
+
+def _enroll(book, *scores):
+    for s in scores:
+        book.add(s)
+    return book
+
+
+def test_books_independent_when_filled_outside_a_test_function():
+    a, b = _enroll(GradeBook("e"), 10), _enroll(GradeBook("f"), 30)
+    assert class_average(a) == 10.0 and class_average(b) == 30.0

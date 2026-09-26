@@ -1,9 +1,11 @@
 """Gate 6: build development memory (SPEC §9.3) into a frozen snapshot.
 
-Per dev task: two `focused` attempts from the seed (rollback on regression) -> checkpoint state;
-narrator (validated, one retry) -> failure_narrative; deterministic error_symbols; fork 4 ->
-one trial per config, concurrently, identical prior_attempts; each outcome records solved and
-verified. Checkpoints are inserted after all four trials finish, then polled until searchable.
+Per dev task: two `focused` attempts from the seed (rollback on regression), then reset to the
+seed (same reset + seed-hash assert as a strategy switch) -> fork 4 -> one trial per config,
+concurrently, from the seed, with identical prior_attempts and the reset line; each outcome
+records solved and verified. The narrative is built from the task (seed code, seed failing
+tests, the verified fix's diff), never from the agent's attempts; error_symbols from the seed
+baseline. Checkpoints are inserted after all four trials finish, then polled until searchable.
 Every model call writes a `calls` row; every attempt writes an `attempts` row (mode "build").
 
 Usage: python scripts/build_memory.py [--snapshot mem-v1] [--force]
@@ -18,11 +20,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from reflex_harness import config, jev  # noqa: E402
+from reflex_harness import config  # noqa: E402
 from reflex_harness.context import locate_focal, pin_focal, resolve_callers  # noqa: E402
 from reflex_harness.controller import record, restore, run_attempt, summarize  # noqa: E402
-from reflex_harness.narrator import error_symbols, forbidden_tokens, narrate  # noqa: E402
-from reflex_harness.runner import TASKS_DIR, LocalRunner, load_task  # noqa: E402
+from reflex_harness.jev import diff_excerpt  # noqa: E402
+from reflex_harness.narrator import forbidden_tokens, narrate_task, task_symbols  # noqa: E402
+from reflex_harness.runner import TASKS_DIR, LocalRunner, load_task, reset_to_seed  # noqa: E402
 from reflex_harness.store import db  # noqa: E402
 
 CFG = {c["config_id"]: c for c in config.CONFIGS_R1}
@@ -34,7 +37,7 @@ def trial(runner, ws, report, cfg, pinned, prior, run_id):
         [fork] = runner.fork(ws, 1)
         try:
             a = run_attempt(runner, fork, report, cfg, pinned, prior, run_id=f"{run_id}-trial-{cfg['config_id']}",
-                            phase="dev", attempt_n=3, verify=True)
+                            phase="dev", attempt_n=3, verify=True, reset_note=True)
         finally:
             runner.cleanup(fork)
         if not a.infra_error:
@@ -50,7 +53,7 @@ def build_checkpoint(task_id, snapshot, stamp):
     try:
         base = runner.run(ws, task.diag_cmd, 120)
         pinned = pin_focal(ws, base)
-        prior, views, reports, cur = [], [], [base], base
+        prior, cur, touched = [], base, set()
         for n in (1, 2):
             a = run_attempt(runner, ws, cur, CFG["focused"], pinned, prior, run_id=run_id,
                             phase="dev", attempt_n=n, verify=True)
@@ -61,36 +64,37 @@ def build_checkpoint(task_id, snapshot, stamp):
                 return {"task_id": task_id, "error": a.error}
             if a.solved:
                 return {"task_id": task_id, "error": f"focused solved at attempt {n}: no failure state"}
-            views.append(jev.attempt_view(n, "focused", a.parent_files, a.files, cur.failed,
-                                          a.report.failed + a.report.collection_errors))
-            reports.append(a.report)
+            touched |= {e.split("::")[0] for e in a.edited}
             prior.append(summarize(n, a, rolled))
             if rolled:
                 restore(ws, a.parent_files)
             else:
                 cur = a.report
 
-        symbols = error_symbols(views, pinned.function, reports)
-        narrative, violations, narr_cost = narrate(
-            views, forbidden_tokens(task.repo, task.allowlist, symbols),
-            run_id=run_id, phase="dev", attempt_n=2)
-
+        reset_to_seed(ws)  # abandoned strategy: same reset + seed-hash assert as a switch
         with ThreadPoolExecutor(max_workers=4) as pool:
-            trials = list(pool.map(lambda c: trial(runner, ws, cur, CFG[c], pinned, prior, run_id),
+            trials = list(pool.map(lambda c: trial(runner, ws, base, CFG[c], pinned, prior, run_id),
                                    [c["config_id"] for c in config.CONFIGS_R1]))
+        seed_files = {p: (task.repo / p).read_text() for p in task.allowlist}
+        fix = next((t for t in trials if t.verified), None)  # registry order
+        symbols = task_symbols(pinned.function, base)
+        narrative, violations, narr_cost = narrate_task(
+            seed_files, base, pinned.function, diff_excerpt(seed_files, fix.files) if fix else None,
+            forbidden_tokens(task.repo, task.allowlist, symbols), run_id=run_id, phase="dev",
+            attempt_n=3)
         for t in trials:
             record(t, run_id=f"{run_id}-trial-{t.config_id}", phase="dev", mode="build",
                    task_id=task_id, attempt_n=3, rolled_back=False)
         outcomes = [{"config_id": t.config_id, "solved": t.solved, "verified": t.verified,
                      "regression": bool(t.regressed), "cost_usd": round(t.cost_usd, 6)}
                     for t in trials if not t.infra_error]
-        site, _ = locate_focal(ws, pinned, cur)
+        site, _ = locate_focal(ws, pinned, base)
         doc = {
             "checkpoint_id": f"{snapshot}-{task_id}", "snapshot_id": snapshot, "family": task.family,
             "task_id": task_id, "failure_narrative": narrative, "narrative_violations": violations,
             "error_symbols": symbols, "focal": pinned.as_doc(),
-            "facets": {"callers_of_focal": len(resolve_callers(ws, site)),
-                       "files_touched": len({f.split("::")[0] for v in views for f in v["functions_edited"]})},
+            "root_cause_from": fix.config_id if fix else None,
+            "facets": {"callers_of_focal": len(resolve_callers(ws, site)), "files_touched": len(touched)},
             "compat": {"language": "python", "protocol": config.PROTOCOL, "registry": config.REGISTRY},
             "prior_attempts": prior, "outcomes": outcomes,
             "build_cost_usd": round(narr_cost + sum(t.cost_usd for t in trials), 6),

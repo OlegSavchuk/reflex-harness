@@ -20,3 +20,11 @@ def test_invoice_rounding():
 
 def test_summary():
     assert weekly_summary([Entry("a", "1h30m")]) == "1 entries, 1.50 billable hours"
+
+
+def _parse(text):
+    return parse_duration(text)
+
+
+def test_parse_duration_outside_a_test_function():
+    assert _parse("2h15m") == 135

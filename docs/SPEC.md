@@ -138,16 +138,35 @@ whether Jev earns its place.
 
 ### 6.2 Intervention
 
-1. Build current failure narrative (same narrator prompt as dev memory — see §9.3).
+1. Build the query narrative with the same narrator prompt as dev memory (§9.3), from the task
+   (seed code, seed failing tests); the fix is not known at this point.
 2. Load `tried_config_ids` from **exact** current-task history (`attempts`), never from retrieval.
-3. Run the selection pipeline (§9.5). It returns one `config_id` + evidence.
-4. Write a `decisions` row. Load the config. `switched = True`, `attempts_in_config = 0`.
-5. The new config gets at least one completed attempt before anything else can stop it,
+3. Select the next config: memory → the selection pipeline (§9.5); fallback → next untried
+   config in registry order.
+4. **Reset to seed (reset-on-switch).** One shared code path for every arm that switches
+   (`controller.switch_strategy`): `git checkout -- .` and `git clean -fd` in the task
+   worktree (each workspace is a git repo whose only commit is the seed), so edits *and* new
+   files from the abandoned strategy are removed. Then compute the tree hash (sha256 over all
+   files, independent of git) and assert it equals the seed hash recorded at `prepare`. On
+   mismatch the run stops with `reset_failed` — never continue on a dirty tree.
+5. Write one `decisions` row: selection evidence plus `reset: {from_config, to_config,
+   seed_hash, tree_hash, seed_hash_verified}`. Load the config. `switched = True`,
+   `attempts_in_config = 0`.
+6. The new config's first prompt carries the line: *"The code has been reset to its original
+   state. None of the edits described in the prior attempts below are present."* Prior-attempt
+   summaries are still passed. Abandoned attempts still count toward the run's cost and tokens.
+7. The new config gets at least one completed attempt before anything else can stop it,
    except diagnostics passing or budget exhaustion.
+
+**Deliberate simplification.** Reset-on-switch isolates strategy selection: the new config
+starts from clean code. We do not test recovery from a dirty tree. Evidence for the choice
+(dev): without it, `dependency` on sem-dev-02 and `caller` on osc-dev-01 produced the correct
+root-cause fix and still failed verification because edits from the abandoned `focused`
+strategy (a rounding hack; a loosened type check) were left in place.
 
 Stop reasons (store separately from `outcome`):
 `solved`, `verification_failed`, `budget_exhausted`, `rolled_back_budget_exhausted`,
-`intervention_limit_reached`, `configurations_exhausted`, `infrastructure_error`.
+`intervention_limit_reached`, `configurations_exhausted`, `infrastructure_error`, `reset_failed`.
 
 ---
 
@@ -238,24 +257,33 @@ for choosing a strategy.
 ### 9.3 Building development memory (checkpoints)
 
 For each dev task:
-1. Run under `focused` until the second failed attempt. That workspace state = checkpoint.
-2. **Narrator call** writes `failure_narrative`: 2–3 sentences of prose from diffs and test
-   deltas describing the *structural* pattern only: no identifiers, paths, domain nouns or
-   test names (dev and eval tasks use different domains; "refund"/"invoice" in a narrative
-   hurts cross-domain retrieval — Gate 1 showed retrieval clustering by domain). Those belong
-   in `error_symbols`, extracted separately (test names, exception types, function names).
-   A cheap validator (`narrator.validate_narrative`) rejects a narrative containing any token
-   from `error_symbols`, the task's file/package names or defined function/class names, or
-   anything identifier-shaped; the narrator retries once with the violations listed.
-3. Fork 4 workspaces from the checkpoint. Run **one attempt per config, concurrently**.
-   All four see identical `prior_attempts` text. Each outcome records `solved` (diagnostics)
-   and `verified` (protected tests, run only if diagnostics pass). Dev tasks only.
-4. Publish the checkpoint only after all four finish. Infra error = missing evidence, not failure.
-5. Insert; poll until searchable (embeddings are async).
-6. Freeze: `snapshot_id = "mem-v1"`. Evaluation never writes to `checkpoints`.
+1. Run under `focused` for two failed attempts (rollback on regression). Their summaries are
+   the checkpoint's `prior_attempts`.
+2. **Reset to seed** exactly as a strategy switch does (§6.2 step 4, same reset + seed-hash
+   assert). The checkpoint is the seed plus the failure history, not the dirty tree.
+3. Fork 4 workspaces from the seed. Run **one attempt per config, concurrently**. All four see
+   identical `prior_attempts` text and the reset line — the same situation an eval run is in
+   right after a switch. Each outcome records `solved` (diagnostics) and `verified` (protected
+   tests + the static caller-inspection check, run only if diagnostics pass). Dev tasks only.
+4. **Narrator call** writes `failure_narrative` from the **task, not the agent's edits**: seed
+   code, seed failing tests (name + first error line), the pinned focal's name, and the diff of
+   the first verified trial in registry order (`root_cause_from`). It never describes code
+   after failed attempts (Gate 6: helpers a `focused` hack created made a family-B narrative
+   read as family A). 2–3 sentences, *structural* only: no identifiers, paths, domain nouns,
+   test names, exception names or literals (dev and eval domains differ; Gate 1 showed
+   clustering by domain). A validator (`narrator.validate_narrative`) rejects any token from
+   `error_symbols`, the task's file/package names or defined names, or anything
+   identifier-shaped; one retry with the violations listed.
+   `error_symbols` come from the seed baseline only: focal name, failing test names,
+   exception types — never from an agent's edits.
+5. Publish the checkpoint only after all four finish. Infra error = missing evidence, not failure.
+6. Insert; poll until searchable (embeddings are async).
+7. Freeze: `snapshot_id = "mem-v1"`. Evaluation never writes to `checkpoints`.
 
-**The query narrative at eval time must come from the same narrator prompt**, or stored and
-query vectors describe different things and retrieval silently degrades.
+**The query narrative at eval time comes from the same narrator prompt and the same inputs**
+(seed code, seed failing tests, focal name), except that the verified fix is "not known".
+Known asymmetry: memory narratives can carry a sentence about where the defect was; query
+narratives cannot. The organization + failure-shape sentences are what must match.
 
 Budget: 4 dev checkpoints (2 per family) × 4 configs = 16 trials + 8 attempts to reach them.
 
@@ -388,6 +416,12 @@ class Runner(Protocol):
 - **Diagnostic tests**: visible to the agent's feedback, live in the task repo, not editable.
 - **Protected tests**: stored outside every workspace (`tasks/<id>/protected/`). After the
   loop, the verifier copies final source into a fresh dir, adds protected tests, runs them.
+- **Static check in verification**: the lines the final diff adds (vs the seed) are grepped
+  for caller/stack inspection (`sys._getframe`, `inspect.stack/currentframe/...`, `f_back`,
+  `f_code`, `co_name`, `traceback.extract_stack/...`). Any match fails verification
+  (`static::caller_inspection`), whatever the tests say.
+- **Workspaces are git worktrees**: `prepare` commits the seed and records its tree hash; the
+  reset-on-switch (§6.2) restores it and asserts the hash.
 - Later: Daytona (sub-90ms sandboxes, copy-on-write fork = our "4 configs from one
   checkpoint"). Don't build it today.
 
@@ -464,6 +498,13 @@ Dashboard shows a "where the harness spends" breakdown.
 Report it: "no measured improvement at this sample size; here's where the overhead went."
 Four held-out tasks are directional evidence, not proof. Say "on N held-out tasks" out loud.
 
+**Sample size, stated up front.** Memory holds **N=2 checkpoints per family** (4 total), and
+retrieval takes the top 2. Fallback's first switch (`caller`) is right for family A, so memory
+and fallback are expected to tie there; any memory-vs-fallback difference rests on the **2
+family-B eval tasks**. Gate 8 is a **feasibility result, not proof that memory beats
+fallback.** Cross-family neighbour risk: with 2 checkpoints per family, the #2 neighbour can
+come from the other family (seen at Gates 1 and 7), diluting the evidence behind a choice.
+
 ---
 
 ## 14. Dashboard & demo
@@ -528,7 +569,7 @@ CLAUDE.md            # schemas, indexes, coding rules
 | 5 | Jev | Smoke test passes; THETA frozen. If it fails: ship rules-only, say so |
 | 6 | Memory | 4 checkpoints × 4 trials stored; snapshot frozen |
 | 7 | Loop | End-to-end run shows an observable evidence-driven config switch |
-| 8 | Evaluation | 3 arms on eval tasks; results table |
+| 8 | Evaluation | 3 arms on eval tasks; results table. Feasibility at N=2 per family, not proof (§13.3) |
 | 9 | Dashboard + video + submission | Public repo, video with audio, description |
 
 Kick off memory building (gate 6) in the background as soon as gates 2–4 pass; build the
@@ -599,4 +640,7 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | ~11:45 | Focal pinned once per task from the seed baseline; `re-resolved` if it disappears | Per-attempt focal drifted to downstream victims (`apply_tax` → `format_cents`) |
 | ~12:00 | Ladder step 7: shrinkage continues only if the patch moved to a new function; otherwise it goes to Jev with `shrank: true` | sem-dev-02 calibration: a same-function rounding hack shrank failures 3 → 1, so the old step 7 skipped Jev on exactly the family that separates memory from fallback |
 | ~12:20 | Ladder step 9: rule-based same-strategy detector replaces Jev; trigger `same_strategy` | Gate 5: Jev's hard-boundary gap was negative for all 3 phrasings (p1 −0.03, within sampling noise); rule scored 9/10 with 0 refinements flagged on the same cases |
+| ~12:55 | Reset-on-switch: every switch resets the worktree to the seed (`git checkout -- .` + `git clean -fd`), asserts tree hash == seed hash (else `reset_failed`), logs the reset in the decisions row, and adds a reset line to the new config's first prompt; memory trials fork from the seed the same way | Dev: `dependency` (sem-dev-02) and `caller` (osc-dev-01) produced correct root-cause fixes that failed verification only because the abandoned strategy's edits were left in the tree. Deliberate simplification: we isolate strategy selection, not dirty-tree recovery |
+| ~13:00 | Narratives built from the task (seed code, seed failing tests, verified fix diff), never from the agent's edits; `error_symbols` from the seed baseline; eval query uses the same prompt with the fix "not known" | Gate 6: a `focused` hack created a helper, so sem-dev-01's narrative read as family A ("shared helper used by multiple callers") and its symbols carried hack names |
+| ~13:05 | Family-B protected tests: one probe per task that exercises the helper from a non-`test_` function; standing static check fails verification on caller/stack inspection in the final diff | Audit (`scripts/audit_gaming.py`): a test-sniffing hack (correct only when the caller's name starts with `test_`) passed sem-dev-01's protected tests; same idea would pass the other three. After the change: 0 of 16 gaming patches pass; every stack-inspecting one is also flagged statically |
 
