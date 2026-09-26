@@ -15,6 +15,8 @@ Reflex does not make the model smarter. It decides what the model gets to see.
 
 ## How it works
 
+![Reflex control loop architecture: the controller selects context, the coding model produces a patch, tests and loop detection evaluate the attempt, and evidence is stored for the next decision.](docs/flow.png)
+
 - **The loop.** The coding model (a direct OpenRouter call) sees only what Reflex hands it and
   returns full-file patches. Reflex applies each patch in an isolated workspace, runs the
   task's diagnostic tests, and records every attempt. Budget: 3 attempts, at most one switch.
