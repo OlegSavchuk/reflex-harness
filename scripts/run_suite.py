@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from reflex_harness.controller import ARMS, run_task  # noqa: E402
+from reflex_harness.controller import ARMS, run_task, shared_first_attempt  # noqa: E402
 from reflex_harness.runner import TASKS_DIR, load_task  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[1] / "runs"
@@ -29,12 +29,22 @@ def main():
     stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
     jobs = [(t, a) for t in tasks for a in args.arms]
     print(f"[suite] {args.phase}: {len(tasks)} tasks x {len(args.arms)} arms = {len(jobs)} runs", flush=True)
+    # attempt 1 is generated once per task and replayed by every arm
+    shared_ids = {t: f"{args.phase}-shared-{t}-{stamp}" for t in tasks}
+    with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+        shared = dict(zip(tasks, pool.map(
+            lambda t: shared_first_attempt(t, phase=args.phase, run_id=shared_ids[t]), tasks)))
+    for t, a in shared.items():
+        print(f"  shared attempt 1 [{t}]: edited={[e.split('::')[-1] for e in a.edited]} "
+              f"failing={len(a.report.failed)} regressed={len(a.regressed)} solved={a.solved} "
+              f"${a.cost_usd:.4f}", flush=True)
 
     def one(job):
         t, a = job
         lines = []
         try:
             doc = run_task(t, a, phase=args.phase, run_id=f"{args.phase}-{a}-{t}-{stamp}",
+                           first_attempt=shared[t], shared_run_id=shared_ids[t],
                            log=lambda m: lines.append(m))
         except Exception as e:  # a failed run is reported, never retried silently
             doc = {"run_id": f"{args.phase}-{a}-{t}-{stamp}", "task_id": t, "arm": a,

@@ -323,6 +323,16 @@ def _def_sources(text: str, path: str) -> dict[str, str]:
     return out
 
 
+def seed_function_keys(ws: Workspace) -> set[str]:
+    """Every function defined in the allowlisted seed files, as "path::name"."""
+    keys = set()
+    for path in ws.task.allowlist:
+        f = ws.task.repo / path
+        if f.is_file():
+            keys |= {k for k in _def_sources(f.read_text(), path) if not k.endswith("::<module>")}
+    return keys
+
+
 def edited_functions(before: dict[str, str], after: dict[str, str]) -> list[str]:
     """Functions whose source differs between two file snapshots ("path::name")."""
     changed = set()

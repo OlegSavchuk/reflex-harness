@@ -11,11 +11,20 @@ def _functions(edited: list[str]) -> set[str]:
 
 
 def same_strategy(prev_edited: list[str], cur_edited: list[str], focal: str,
-                  failing_after: list[str]) -> bool:
-    """Same focal function edited on consecutive attempts, no change in which functions are
-    edited, failures not reduced to zero. `focal` and edits are "path::name"."""
-    prev, cur = _functions(prev_edited), _functions(cur_edited)
-    return focal in prev and focal in cur and prev == cur and bool(failing_after)
+                  failing_after: list[str], seed_functions: set[str]) -> bool:
+    """Both attempts' edits stay inside the focal region and failures remain.
+
+    Focal region = the pinned focal function + any function the agent created during this
+    run (not in the seed). Module-level lines of the focal file are ignored; module-level
+    edits anywhere else are outside the region. Entries are "path::name"."""
+    focal_path = focal.split("::")[0]
+
+    def inside(e: str) -> bool:
+        if e.endswith("::<module>"):
+            return e.split("::")[0] == focal_path
+        return e == focal or e not in seed_functions
+
+    return bool(failing_after) and all(inside(e) for e in [*prev_edited, *cur_edited])
 
 
 def progress_moved(prev_edited: list[str], cur_edited: list[str], failing_before: list[str],
@@ -73,21 +82,32 @@ def restore(ws: Workspace, files: dict) -> None:
 
 def run_attempt(runner: LocalRunner, ws: Workspace, parent_report: TestReport, config: dict,
                 pinned: PinnedFocal, prior: list[str], *, run_id: str, phase: str,
-                attempt_n: int, verify: bool = True, reset_note: bool = False) -> AttemptResult:
-    """Build context, call the model (two calls for diagnostic), apply, test, verify."""
+                attempt_n: int, verify: bool = True, reset_note: bool = False,
+                replay: "AttemptResult | None" = None) -> AttemptResult:
+    """Build context, call the model (two calls for diagnostic), apply, test, verify.
+    replay: reuse a shared attempt's model output (same prompt) instead of a new call;
+    its cost was logged once under the shared run id."""
     task = ws.task
     parent_files = snapshot(ws)
     ctx = build_context(ws, parent_report, config, pinned)
     cost, check, note, patch, error = 0.0, None, None, None, None
-    if config["workflow"]["diagnostic_first"]:
+    if replay is not None:
+        assert not config["workflow"]["diagnostic_first"], "only single-call attempts are shared"
+        messages = [{"role": "system", "content": ""}, {"role": "user", "content": replay.prompt}]
+        data = {"files": replay.patch["files"], "note": replay.note} if replay.patch else None
+        reply = agent.AgentReply(data=data, model="replay", model_reported=None,
+                                 input_tokens=0, output_tokens=0, cost_usd=replay.cost_usd,
+                                 latency_ms=0, error=None if data else replay.error)
+    elif config["workflow"]["diagnostic_first"]:
         r1 = agent.call(render(ctx, task.goal, prior, step="check", reset_note=reset_note),
                         run_id=run_id, phase=phase, attempt_n=attempt_n, step="check")
         cost += r1.cost_usd
         script = (r1.data or {}).get("script") or ""
         out = runner.run_script(ws, script, SCRIPT_TIMEOUT_S).output if script else f"<no script: {r1.error}>"
         check = (script, out)
-    messages = render(ctx, task.goal, prior, step="patch", check=check, reset_note=reset_note)
-    reply = agent.call(messages, run_id=run_id, phase=phase, attempt_n=attempt_n)
+    if replay is None:
+        messages = render(ctx, task.goal, prior, step="patch", check=check, reset_note=reset_note)
+        reply = agent.call(messages, run_id=run_id, phase=phase, attempt_n=attempt_n)
     cost += reply.cost_usd
     report = parent_report
     if reply.data is None:
@@ -125,7 +145,7 @@ def summarize(n: int, a: AttemptResult, rolled_back: bool) -> str:
     if a.error and a.patch is None:
         return f"Attempt {n} ({a.config_id}): no patch applied ({a.error[:120]})."
     line = (f"Attempt {n} ({a.config_id}): edited {fns}"
-            f"{f' — {a.note}' if a.note else ''}. Failing after: {short(a.report.failed)}.")
+            f"{f' — ' + a.note.rstrip(' .') if a.note else ''}. Failing after: {short(a.report.failed)}.")
     if a.regressed:
         line += f" Regression: {short(a.regressed)} broke" + ("; rolled back." if rolled_back else ".")
     return line
@@ -159,7 +179,7 @@ from datetime import datetime, timezone  # noqa: E402
 
 from . import config as _config  # noqa: E402
 from . import prices  # noqa: E402
-from .context import pin_focal  # noqa: E402
+from .context import pin_focal, seed_function_keys  # noqa: E402
 from .narrator import forbidden_tokens, narrate_task, task_symbols  # noqa: E402
 from .pipelines import retrieval_pipeline, selection_pipeline  # noqa: E402
 from .runner import DirtyTreeError, load_task, reset_to_seed, tree_hash  # noqa: E402
@@ -233,10 +253,28 @@ def switch_strategy(ws, row: dict, from_config: str) -> None:
                              f"seed {ws.seed_hash[:12]}); run stopped, never continue on a dirty tree")
 
 
+def shared_first_attempt(task_id: str, *, phase: str, run_id: str,
+                         registry: str = _config.REGISTRY) -> AttemptResult:
+    """Attempt 1 (focused, no history) generated once per task and replayed by every arm, so
+    arms differ only after attempt 1. One `calls` row, under `run_id`."""
+    task = load_task(task_id)
+    runner = LocalRunner()
+    cfg = db()["configs"].find_one({"registry": registry, "config_id": "focused"}, {"_id": 0})
+    ws = runner.prepare(task)
+    try:
+        base = runner.run(ws, task.diag_cmd, TEST_TIMEOUT_S)
+        return run_attempt(runner, ws, base, cfg, pin_focal(ws, base), [], run_id=run_id,
+                           phase=phase, attempt_n=1, verify=False)
+    finally:
+        runner.cleanup(ws)
+
+
 def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAPSHOT_ID,
              registry: str = _config.REGISTRY, protocol: str = _config.PROTOCOL,
-             run_id: str | None = None, log=print) -> dict:
-    """One task under one arm. Returns the `runs` document."""
+             run_id: str | None = None, first_attempt: AttemptResult | None = None,
+             shared_run_id: str | None = None, log=print) -> dict:
+    """One task under one arm. Returns the `runs` document.
+    first_attempt: shared attempt 1 to replay (see shared_first_attempt)."""
     assert arm in ARMS and phase in ("dev", "eval")
     task = load_task(task_id)
     runner = LocalRunner()
@@ -248,13 +286,15 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
         base = cur = runner.run(ws, task.diag_cmd, TEST_TIMEOUT_S)
         pinned = pin_focal(ws, cur)
         focal_key = f"{pinned.path}::{pinned.function}"
+        seed_fns = seed_function_keys(ws)
         cfg = configs["focused"]
         prior, cfg_history = [], []
         seen_states, seen_fps = set(), set()
         for n in range(1, BUDGET + 1):
             parent = cur
             a = run_attempt(runner, ws, parent, cfg, pinned, prior, run_id=run_id, phase=phase,
-                            attempt_n=n, verify=False, reset_note=reset_note)
+                            attempt_n=n, verify=False, reset_note=reset_note,
+                            replay=first_attempt if n == 1 else None)
             reset_note = False
             if a.infra_error:
                 record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n, rolled_back=False)
@@ -285,7 +325,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                 if (trigger is None and prev is not None                   # 7. progress that moved
                         and not progress_moved(prev.edited, a.edited, parent.failed, failing_after)
                         and not switched and in_cfg >= 2                   # 8. too early
-                        and same_strategy(prev.edited, a.edited, focal_key, failing_after)):
+                        and same_strategy(prev.edited, a.edited, focal_key, failing_after, seed_fns)):
                     trigger = "same_strategy"                              # 9. same strategy
             else:
                 cur = a.report
@@ -328,7 +368,10 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
     doc = {"run_id": run_id, "phase": phase, "arm": arm, "task_id": task_id, "family": task.family,
            "stop_reason": stop, "verified_fix": stop == "solved", "attempts": n, "switched": switched,
            "configs_used": db()["attempts"].distinct("config_id", {"run_id": run_id}),
-           "cost_usd": tot["c"], "input_tokens": tot["i"], "output_tokens": tot["o"],
+           "cost_usd": tot["c"] + (first_attempt.cost_usd if first_attempt else 0.0),
+           "input_tokens": tot["i"], "output_tokens": tot["o"],
+           "shared_attempt": ({"run_id": shared_run_id, "cost_usd": first_attempt.cost_usd}
+                              if first_attempt else None),
            "snapshot_id": snapshot if arm == "memory" else None,
            "created_at": datetime.now(timezone.utc)}
     db()["runs"].insert_one(dict(doc))

@@ -119,26 +119,30 @@ def pipeline_ranks(fusion):
 
 
 def reference_choice(neighborhood, registry_configs, tried):
-    """Python restatement of the frozen selection rule, used only to cross-check the pipeline."""
+    """Python restatement of the frozen selection rule, used only to cross-check the pipeline.
+    Sort: score desc, nearest solving neighbour's rank asc, mean_cost asc, order asc."""
     stats = {}
-    for ck in neighborhood:
+    for rank, ck in enumerate(neighborhood, 1):
         for out in ck["outcomes"]:
             if out["config_id"] in tried:
                 continue
             s = stats.setdefault(out["config_id"], {"support": 0, "solves": 0, "regressions": 0,
-                                                    "costs": []})
+                                                    "costs": [], "nsr": 99})
             s["support"] += 1
-            s["solves"] += out["solved"] and out.get("verified", False)
+            solved = out["solved"] and out.get("verified", False)
+            s["solves"] += solved
             s["regressions"] += out["regression"]
             s["costs"].append(out["cost_usd"])
+            if solved:
+                s["nsr"] = min(s["nsr"], rank)
     order = {c["config_id"]: c["order"] for c in registry_configs}
     for cid in order:
         if cid not in tried:
-            stats.setdefault(cid, {"support": 0, "solves": 0, "regressions": 0, "costs": []})
+            stats.setdefault(cid, {"support": 0, "solves": 0, "regressions": 0, "costs": [], "nsr": 99})
     rows = [(cid, (s["solves"] - 2 * s["regressions"]) / (s["support"] + 1),
-             sum(s["costs"]) / len(s["costs"]) if s["costs"] else 1e9, order.get(cid, 99))
+             sum(s["costs"]) / len(s["costs"]) if s["costs"] else 1e9, order.get(cid, 99), s["nsr"])
             for cid, s in stats.items()]
-    rows.sort(key=lambda r: (-r[1], r[2], r[3]))
+    rows.sort(key=lambda r: (-r[1], r[4], r[2], r[3]))
     return rows
 
 
@@ -204,10 +208,11 @@ def run_query(ckpt, family, target, narrative, symbols, registry_configs):
     ref = reference_choice(hood, registry_configs, tried)
     for r in rows:
         print(f"        candidate {r['_id']:<11} score={r['score']:+.3f} support={r['support']} "
-              f"solves={r['solves']} regressions={r['regressions']} mean_cost={r['mean_cost']:g} "
+              f"solves={r['solves']} regressions={r['regressions']} nearest_solve_rank={r['nearest_solve_rank']} "
+              f"mean_cost={r['mean_cost']:g} "
               f"evidence={r.get('evidence')}")
-    check("all untried configs returned, sorted", [r["_id"] for r in rows] == [c for c, *_ in ref]
-          and len(rows) == 4 - len(tried), f"reference order {[c for c, *_ in ref]}")
+    check("all untried configs returned, sorted", [r["_id"] for r in rows] == [x[0] for x in ref]
+          and len(rows) == 4 - len(tried), f"reference order {[x[0] for x in ref]}")
     check("scores == Python reference", len(rows) == len(ref) and all(
         abs(r["score"] - x[1]) < 1e-9 for r, x in zip(rows, ref)))
     raw_diag = sum(out["solved"] for ck in hood for out in ck["outcomes"]
@@ -278,6 +283,23 @@ def main():
                   if after else "empty")
             check("new choice == Python reference", after is not None and after["_id"] == ref[0][0],
                   f"reference {ref[0][0]}")
+
+        if hood:
+            print("\n[tie-break] caller solves only at rank 1 (expensive); dependency only at rank 2 (cheap)")
+            r1, r2 = hood[0]["checkpoint_id"], hood[1]["checkpoint_id"]
+            for cid, solver in ((r1, "caller"), (r2, "dependency")):
+                ckpt.update_one({"checkpoint_id": cid}, {"$set": {"outcomes": [
+                    o("focused", False, False, 0.02), o("caller", solver == "caller", False, 0.09),
+                    o("dependency", solver == "dependency", False, 0.01), o("diagnostic", False, False, 0.05)]}})
+            tied = select(ckpt, narr, syms, ["focused"])
+            hood3 = list(ckpt.aggregate(retrieval_pipeline(narr, syms, FX_SNAPSHOT, config.PROTOCOL)))
+            ref = reference_choice(hood3, registry_configs, ["focused"])
+            check("scores tie between caller and dependency",
+                  len(tied) >= 2 and tied[0]["score"] == tied[1]["score"],
+                  ", ".join(f"{r['_id']}={r['score']:+.3f}/r{r['nearest_solve_rank']}/${r['mean_cost']:g}" for r in tied))
+            check("nearest neighbour's config wins the tie (not the cheapest)",
+                  tied and tied[0]["_id"] == "caller" and tied[0]["mean_cost"] > tied[1]["mean_cost"])
+            check("tie-break == Python reference", [r["_id"] for r in tied] == [x[0] for x in ref])
 
         print("\n[exhaustion]")
         none_left = select(ckpt, narr, syms, CONFIG_IDS)

@@ -18,8 +18,10 @@ selection pipeline, Jev contract, task suite, evaluation protocol, build gates.
 - Workspaces are git worktrees (seed = the only commit); `git` must be on PATH. A strategy
   switch resets to the seed through `controller.switch_strategy` only, and asserts the tree
   hash. Never add a second reset path, and never continue after `DirtyTreeError`.
-- Verification = protected tests + the static caller-inspection check on the final diff
-  (`runner.static_violations`). Run `scripts/validate_tasks.py` and `scripts/audit_gaming.py`
+- Verification = protected tests + the static gaming-pattern check on the final diff
+  (`runner.static_violations`: caller/stack inspection and test-context sniffing).
+- Suite runs (`scripts/run_suite.py`) generate attempt 1 once per task and replay it in every
+  arm; never give arms independently sampled first attempts. Run `scripts/validate_tasks.py` and `scripts/audit_gaming.py`
   after any change to a task.
 - Use the MongoDB skills in `.claude/skills/` for query writing, search/vector
   indexes, schema questions and connection setup. The MCP server is read-only;
@@ -160,7 +162,8 @@ table the selection pipeline returns: per-config support/solves/regressions/mean
 `run_id`, `phase`, `arm`, `task_id`, `family`, `stop_reason` (SPEC §6.2, incl. `reset_failed`),
 `verified_fix` (stop_reason == "solved"), `attempts`, `switched`, `configs_used`, `cost_usd`,
 `input_tokens`, `output_tokens` (sums of the run's `calls` rows, abandoned attempts included),
-`snapshot_id` (memory arm), `created_at`.
+`shared_attempt` (`{run_id, cost_usd}` of the attempt 1 replayed in every arm; its cost is
+included in `cost_usd`), `snapshot_id` (memory arm), `created_at`.
 
 ### Collection: `calls` — cost ledger, one row per external call
 
@@ -178,6 +181,8 @@ source files), `diag_cmd`, `protected_cmd`. Reference fixes are never stored her
 
 score = (solves − 2 × regressions) / (support + 1), where a solve = `solved AND verified`
 (diagnostics and protected tests both passed in the dev trial).
-Sort: score desc → mean_cost asc → order asc. The pipeline returns every untried config in
-that order; Python takes row 0 and stores the whole table in `decisions.candidates`. Unknown configs get
+Sort: score desc → nearest_solve_rank asc (on a tie, the config verified-solved by the nearest
+neighbour wins) → mean_cost asc (only when rank can't decide) → order asc. The pipeline returns
+every untried config in that order; Python takes row 0 and stores the whole table in
+`decisions.candidates`. Unknown configs get
 `mean_cost = 1e9` (null would sort first). One configuration switch per task.

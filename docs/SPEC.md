@@ -124,9 +124,13 @@ After every attempt:
    (3 failures → 2 *different* failures is not shrinkage.)
 8. **Too early for Jev?** Already switched, or fewer than 2 completed attempts under the
    current config → continue.
-9. **Same-strategy check (rule; replaced Jev at Gate 5).** Same focal function edited on
-   consecutive attempts, no change in which functions are edited, failures not reduced to
-   zero → trigger = `same_strategy` → intervene. Else continue.
+9. **Same-strategy check (rule; replaced Jev at Gate 5).** Focal region = the pinned focal
+   function + any function the agent created during this run (not in the seed). If both of the
+   last two attempts' edits stay inside the region and failures remain → trigger =
+   `same_strategy` → intervene. Else continue. Module-level lines of the focal file are
+   ignored; module-level edits in other files are outside the region. (Smoke run: the agent
+   moved its hack into a helper it had just created, which the earlier "same focal function"
+   rule missed.) Edits to a *seed* sibling of the focal are outside the region.
    (`controller.same_strategy`.) Jev was the plan here — packet with `failing_before`,
    `failing_after`, `shrank` — but it could not separate same-function shrinking hacks from
    genuine refinements (Gate 5, §10). Disclosed. A false positive costs one early switch to a
@@ -317,26 +321,32 @@ def selection_pipeline(narrative, symbols, snapshot_id, protocol, registry, trie
       {"$project": {"checkpoint_id": 1, "fusion": {"$meta": "scoreDetails"},
           "outcomes": {"$filter": {"input": "$outcomes",
               "cond": {"$not": {"$in": ["$$this.config_id", tried]}}}}}},
+      {"$setWindowFields": {"sortBy": {"fusion.value": -1},       # rank 1 = nearest neighbour
+          "output": {"rank": {"$documentNumber": {}}}}},
       {"$unwind": "$outcomes"},
       {"$group": {"_id": "$outcomes.config_id", "support": {"$sum": 1},
           "solves": {"$sum": {"$cond": [
               {"$and": ["$outcomes.solved", "$outcomes.verified"]}, 1, 0]}},
           "regressions": {"$sum": {"$cond": ["$outcomes.regression", 1, 0]}},
           "mean_cost": {"$avg": "$outcomes.cost_usd"},
+          "nearest_solve_rank": {"$min": {"$cond": [
+              {"$and": ["$outcomes.solved", "$outcomes.verified"]}, "$rank", 99]}},
           "evidence": {"$push": "$checkpoint_id"}}},
       {"$unionWith": {"coll": "configs", "pipeline": [
           {"$match": {"registry": registry, "config_id": {"$nin": tried}}},
           {"$project": {"_id": "$config_id", "support": {"$literal": 0},
               "solves": {"$literal": 0}, "regressions": {"$literal": 0},
-              "mean_cost": {"$literal": 1e9}, "order": 1}}]}},
+              "mean_cost": {"$literal": 1e9}, "nearest_solve_rank": {"$literal": 99},
+              "order": 1}}]}},
       {"$group": {"_id": "$_id", "support": {"$max": "$support"},
           "solves": {"$max": "$solves"}, "regressions": {"$max": "$regressions"},
           "mean_cost": {"$min": "$mean_cost"}, "order": {"$max": "$order"},
+          "nearest_solve_rank": {"$min": "$nearest_solve_rank"},
           "evidence": {"$first": "$evidence"}}},
       {"$addFields": {"score": {"$divide": [
           {"$subtract": ["$solves", {"$multiply": [2, "$regressions"]}]},
           {"$add": ["$support", 1]}]}}},
-      {"$sort": {"score": -1, "mean_cost": 1, "order": 1}}]
+      {"$sort": {"score": -1, "nearest_solve_rank": 1, "mean_cost": 1, "order": 1}}]
 ```
 
 Notes:
@@ -348,6 +358,10 @@ Notes:
 - A solve counts only if `solved AND verified`: a memory that credits a config for a fix the
   protected tests reject teaches the wrong lesson. Formula unchanged. (Decided before any
   measurement.)
+- **Tie-break by rank, not cost.** On a score tie, the config verified-solved by the nearest
+  neighbour (lowest fusion rank) wins; `mean_cost` decides only when rank can't. With a
+  mixed-family top 2, each family's winner gets one solve and they tie; the old cost tie-break
+  then always picked `dependency` (family-B trials are cheap) — wrong for family A.
 - No final `$limit`: the pipeline returns the full sorted candidate table; Python takes row 0
   and stores the table in `decisions.candidates` for the dashboard. `retrieved` (with fusion
   scores) comes from `retrieval_pipeline()`, which shares the same `$rankFusion` stage.
@@ -417,9 +431,13 @@ class Runner(Protocol):
 - **Protected tests**: stored outside every workspace (`tasks/<id>/protected/`). After the
   loop, the verifier copies final source into a fresh dir, adds protected tests, runs them.
 - **Static check in verification**: the lines the final diff adds (vs the seed) are grepped
-  for caller/stack inspection (`sys._getframe`, `inspect.stack/currentframe/...`, `f_back`,
-  `f_code`, `co_name`, `traceback.extract_stack/...`). Any match fails verification
-  (`static::caller_inspection`), whatever the tests say.
+  for gaming patterns (`runner.GAMING_PATTERNS`): caller/stack inspection (`sys._getframe`,
+  `inspect.stack/currentframe/...`, `f_back`, `f_code`, `co_name`, `traceback.*stack`), module/
+  source inspection, test-context sniffing (`PYTEST*`, `os.environ`/`getenv`, importing
+  `pytest`/`tests`/`test_*`/`conftest`, `sys.modules`, `sys.argv`, `__import__`/`importlib`,
+  string literals naming tests). Any match fails verification (`static::gaming_pattern`),
+  whatever the tests say. Environment sniffing cannot be caught by tests at all (protected
+  tests also run under pytest); this check is the only defence.
 - **Workspaces are git worktrees**: `prepare` commits the seed and records its tree hash; the
   reset-on-switch (§6.2) restores it and asserts the hash.
 - Later: Daytona (sub-90ms sandboxes, copy-on-write fork = our "4 configs from one
@@ -469,6 +487,13 @@ Three arms, same tasks, same model snapshot, same budget, separate workspaces:
 `plain_retry` vs `memory` proves the harness matters. `fallback` vs `memory` proves
 MongoDB matters.
 
+**Shared attempt 1.** The first `focused` attempt (no history, same prompt in every arm) is
+generated once per task (`controller.shared_first_attempt`, its own run id and one `calls`
+row) and replayed in `plain_retry`, `fallback` and `memory`: same patch applied to each arm's
+own fresh seed, tests re-run, no new model call. Arms therefore differ only after attempt 1.
+Each arm's `runs.cost_usd` includes the shared attempt's cost (`runs.shared_attempt`), so cost
+per verified fix stays comparable.
+
 Order: freeze memory snapshot, THETA, prompts, registry, retrieval settings, scoring →
 then run eval. **No tuning after seeing eval results.** One run per task per arm; any rerun
 is counted and reported.
@@ -504,6 +529,13 @@ and fallback are expected to tie there; any memory-vs-fallback difference rests 
 family-B eval tasks**. Gate 8 is a **feasibility result, not proof that memory beats
 fallback.** Cross-family neighbour risk: with 2 checkpoints per family, the #2 neighbour can
 come from the other family (seen at Gates 1 and 7), diluting the evidence behind a choice.
+
+**Leave-one-out preview (dev only, `scripts/loo_retrieval.py`).** Eval-style queries on the 4
+dev tasks with their own checkpoint excluded: top-1 same family **3/4**; top-2 mixed in every
+case. Family A separates clearly (semantic 0.83 vs ≤ 0.77); family B barely or not at all
+(margins 0.01–0.03); sem-dev-02's query ("a shared aggregation function… reused by several
+functions") retrieved two family-A checkpoints. LOO leaves one same-family checkpoint per
+query; eval has two.
 
 ---
 
@@ -644,4 +676,9 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | ~13:00 | Narratives built from the task (seed code, seed failing tests, verified fix diff), never from the agent's edits; `error_symbols` from the seed baseline; eval query uses the same prompt with the fix "not known" | Gate 6: a `focused` hack created a helper, so sem-dev-01's narrative read as family A ("shared helper used by multiple callers") and its symbols carried hack names |
 | ~13:05 | Family-B protected tests: one probe per task that exercises the helper from a non-`test_` function; standing static check fails verification on caller/stack inspection in the final diff | Audit (`scripts/audit_gaming.py`): a test-sniffing hack (correct only when the caller's name starts with `test_`) passed sem-dev-01's protected tests; same idea would pass the other three. After the change: 0 of 16 gaming patches pass; every stack-inspecting one is also flagged statically |
 | ~13:25 | **FREEZE (pre-Gate 8): code `bcecbc7` + mem-v1 sha256 `84cbf2b11c664bc373f73b8c36c80b99bbb0b2a8f392fa4689ef61b964b63619`** (4 checkpoints; `scripts/snapshot_hash.py`). Old mem-v1 archived in `checkpoints_archive` as invalid (weak tests) | Ladder, same-strategy rule, selection scoring, prompts, narrator and memory fixed before any eval run. Rebuilt mem-v1: exactly one verified config per dev task (caller: osc-dev-01, osc-dev-02; dependency: sem-dev-01, sem-dev-02); build cost $0.018 |
+| ~13:50 | Leave-one-out retrieval preview on dev (no eval) | Before changing selection: top-1 same family 3/4, top-2 always mixed, family-B margins 0.01–0.03 |
+| ~13:55 | Selection tie-break: on a score tie, the nearest neighbour's (lowest fusion rank) verified config wins; `mean_cost` only when rank can't decide | With a mixed top 2 each family's winner tied and the cost tie-break always chose `dependency` (cheap family-B trials) — deterministic misrouting of family A. Gate 1 now forces a tie: rank-1 `caller` ($0.09) beats rank-2 `dependency` ($0.01) |
+| ~14:00 | Same-strategy rule uses a focal region: pinned focal + functions the agent created this run; fires when both attempts' edits stay inside and failures remain | Dev smoke: sem-dev-01 never intervened in any arm — the agent moved its hack into a helper it created, so "same focal function edited" never held |
+| ~14:05 | Attempt 1 shared across arms (generated once per task, replayed; cost attributed to every arm) | Arms got different attempt-1 behaviour on the same task (osc-dev-01: fallback regressed and switched, memory hacked diagnostics and stopped), so arm differences reflected sampling before any selection happened |
+| ~14:10 | Static check extended to test-context sniffing (PYTEST env, os.environ, test-module imports, sys.modules/argv, dynamic import, test-name literals); prompt summaries no longer end in ".." | Environment sniffing passes every protected test (they run under pytest); audit: 2 such hacks caught by the static check only, 0 holes |
 
