@@ -75,13 +75,18 @@ class Pretty:
                  f"model {self.model} · budget {budget} attempts · seed: visible tests "
                  f"{visible_passed}/{visible_total}")
 
-    def on_attempt(self, *, attempt_n, config_id, edited, visible_passed, visible_total, error, solved, **_):
+    def on_attempt(self, *, attempt_n, config_id, edited, visible_passed, visible_total, error, solved,
+                   regressed=(), trigger=None, **_):
         fns = [e.split("::")[-1] for e in edited]
         names = [f for f in fns if f != "<module>"] + (["module-level code"] if "<module>" in fns else [])
         what = f"editing {', '.join(names)}" if names else f"no edit ({error})" if error else "no edit"
         score = f"VISIBLE TESTS {visible_passed}/{visible_total}"
+        broke = ""
+        if trigger == "regression" and regressed:
+            n = len(regressed)
+            broke = " · " + self.tint(f"{n} previously passing test{'s' if n != 1 else ''} broke", "red")
         self.out(f"{self.badge(f'ATTEMPT {attempt_n}', 'cyan')} ({config_id}) · {what} → "
-                 f"{self.tint(score, 'green' if solved else 'yellow')}")
+                 f"{self.tint(score, 'green' if solved else 'yellow')}{broke}")
 
     def on_trigger(self, *, trigger, **_):
         label, colour = TRIGGERS.get(trigger, (trigger.upper(), "red"))

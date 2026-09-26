@@ -341,7 +341,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                 record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n, rolled_back=False)
                 stop = "solved" if a.verified else "verification_failed"
                 log(f"  attempt {n} [{cfg['config_id']}] diagnostics pass -> {stop}")
-                emit("attempt", **_attempt_event(n, cfg, a, rolled_back=False))
+                emit("attempt", **_attempt_event(n, cfg, a, rolled_back=False, trigger=None))
                 break
             if arm != "plain_retry":
                 if a.regressed:                                            # 2. regression
@@ -368,7 +368,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                    rolled_back=rolled, trigger=trigger)
             if trigger:
                 triggers.append({"attempt_n": n, "trigger": trigger})
-            emit("attempt", **_attempt_event(n, cfg, a, rolled_back=rolled))
+            emit("attempt", **_attempt_event(n, cfg, a, rolled_back=rolled, trigger=trigger))
             if trigger:
                 emit("trigger", trigger=trigger, attempt_n=n)
             cfg_history.append(a)
@@ -434,8 +434,8 @@ def _n_tests(report: TestReport) -> int:
     return len(report.passed) + len(report.failed) + len(report.collection_errors)
 
 
-def _attempt_event(n: int, cfg: dict, a: AttemptResult, *, rolled_back: bool) -> dict:
-    return {"attempt_n": n, "config_id": cfg["config_id"], "edited": list(a.edited),
+def _attempt_event(n: int, cfg: dict, a: AttemptResult, *, rolled_back: bool, trigger: str | None) -> dict:
+    return {"attempt_n": n, "config_id": cfg["config_id"], "edited": list(a.edited), "trigger": trigger,
             "visible_passed": len(a.report.passed), "visible_total": _n_tests(a.report),
             "regressed": list(a.regressed), "rolled_back": rolled_back, "error": a.error,
             "solved": a.solved}

@@ -1,0 +1,58 @@
+GATE 8 TOKEN USAGE — SECONDARY, computed after the run, NOT pre-registered
+Source: results/gate8/runs/*.json (60 runs) + MongoDB `calls`/`attempts` rows for those run ids. Read-only.
+Frozen code 26b79a7, mem-v1 c701ea5e. Family A = oscillation, B = semantic_repetition.
+Tokens = provider-reported usage per call. Reasoning tokens are reported separately by the API and are
+INCLUDED in output tokens (not additional). Attempt 1 (shared) is counted in every arm, like its cost.
+
+DATA COMPLETENESS
+  measured calls (agent + narrator): 102; with missing input/output/reasoning counts: 0
+  calls with reasoning > output tokens: 0
+  attempts >= 2 without an agent call row: 0
+  shared attempt-1 runs without a call row: 0
+  NOT MEASURED: 30 `embed` rows (['embed']) in 15 memory runs carry harness estimates (Atlas embedded the query server-side);
+  excluded from every total below. Runs: eval-memory-osc-eval-01-20260926T173508, eval-memory-osc-eval-01-20260926T174056, eval-memory-osc-eval-02-20260926T173508, eval-memory-osc-eval-02-20260926T173715, eval-memory-osc-eval-02-20260926T174056, eval-memory-sem-eval-01-20260926T173508, eval-memory-sem-eval-01-20260926T173715, eval-memory-sem-eval-01-20260926T173901, eval-memory-sem-eval-01-20260926T174056, eval-memory-sem-eval-01-20260926T174311, eval-memory-sem-eval-02-20260926T173508, eval-memory-sem-eval-02-20260926T173715, eval-memory-sem-eval-02-20260926T173901, eval-memory-sem-eval-02-20260926T174056, eval-memory-sem-eval-02-20260926T174311
+
+PER ARM AND FAMILY (all measured tokens, attempt 1 included; 'total' = input + output)
+arm         fam  runs fixed    input   output reasoning     total  per run  per att   per fix       no-fix runs
+---------------------------------------------------------------------------------------------------------------
+plain_retry A      10     0   10,345   33,028    25,603    43,373    4,337    2,283   n/a (0)   43,373 (100%)
+plain_retry B      10     0   14,222   91,484    85,662   105,706   10,571    3,524   n/a (0)  105,706 (100%)
+plain_retry all    20     0   24,567  124,512   111,265   149,079    7,454    3,042   n/a (0)  149,079 (100%)
+
+fallback    A      10     4   12,536   28,034    22,500    40,570    4,057    2,254    10,142   19,776 (49%)
+fallback    B      10     0   13,168   45,036    41,019    58,204    5,820    2,910   n/a (0)   58,204 (100%)
+fallback    all    20     4   25,704   73,070    63,519    98,774    4,939    2,599    24,694   77,980 (79%)
+
+memory      A      10     5   19,283   27,818    21,823    47,101    4,710    2,479     9,420   15,668 (33%)
+memory      B      10     8   21,865   36,821    32,404    58,686    5,869    2,934     7,336   10,068 (17%)
+memory      all    20    13   41,148   64,639    54,227   105,787    5,289    2,712     8,137   25,736 (24%)
+
+  per att = total / attempts made (attempt 1 counted in each arm); per fix = all tokens of the cell,
+  failed runs included, / verified fixes; no-fix runs = tokens spent in runs that ended without a verified fix.
+
+BY COMPONENT (memory arm only uses the narrator: one query narrative per switch)
+  plain_retry agent: 49 calls, 149,079 tokens
+  fallback    agent: 38 calls, 98,774 tokens
+  memory      agent: 39 calls, 88,604 tokens  narrator: 16 calls, 17,183 tokens
+
+STORED runs.input_tokens/output_tokens (own calls only, attempt 1 excluded) vs this accounting
+  plain_retry  stored 15,782 in / 77,672 out; with attempt 1: 24,567 in / 124,512 out
+  fallback     stored 16,919 in / 26,230 out; with attempt 1: 25,704 in / 73,070 out
+  memory       stored 34,307 in / 17,799 out; with attempt 1: 41,148 in / 64,639 out
+  The stored memory totals also include the 30 estimated embed rows (1,944 input tokens),
+  which this accounting excludes. runs.cost_usd includes attempt 1 but the stored token fields do not
+  (same code in Gate 9).
+
+MEAN TOKENS PER ATTEMPT BY CONTEXT CONFIG (each generated attempt once; shared attempt 1 counted once)
+  config       attempts  mean input  mean output
+  focused            57         494        2,434
+  caller             21       1,158        1,099
+  dependency          8       1,036          328
+
+MEM-V1 BUILD (one-off setup cost, not per run)
+  build 20260926T163015 (mem-v1 evidence: 4 dev tasks x 4 config trials + narrator)
+    32 calls (agent 28, narrator 4); 25,641 in / 45,365 out (reasoning 37,275) = 71,006 tokens; $0.0252; missing counts: 0
+  re-narration 20260926T170018 (narrator only, before the freeze)
+    4 calls (narrator 4); 3,661 in / 1,171 out (reasoning 886) = 4,832 tokens; $0.0010; missing counts: 0
+  archived builds 161118 + 165505 (not in mem-v1; dev spend)
+    58 calls (agent 51, narrator 7); 46,370 in / 78,708 out (reasoning 62,041) = 125,078 tokens; $0.0440; missing counts: 0

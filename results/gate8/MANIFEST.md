@@ -50,3 +50,19 @@ visible tests, 0 actually fixed); the hashes below are for that version. Data fi
 81b9771df2c7078631f2cc1cf58e31a83c3e4a7eae66912e6fb0ad66f41ceabf  make_chart.py
 ```
 
+
+## Token usage (secondary, computed after the run, not pre-registered)
+
+`results/gate8/token_analysis.py` writes `tokens.txt` from the 60 run files above and their
+`calls`/`attempts` rows in MongoDB (read-only, no model calls): tokens per arm and family
+(input, output, reasoning), per run, per attempt, per verified fix, on runs without a fix, mean
+tokens per attempt by context config, and the one-off mem-v1 build. **Secondary, computed after
+the run, not pre-registered.** Attempt 1 is counted in every arm, like its cost. 30 `embed` rows
+hold harness estimates (Atlas embedded the query server-side) and are listed, never totalled.
+Run from the repo root with the venv: `python results/gate8/token_analysis.py`; output is
+deterministic (same hash on repeated runs). Data files above unchanged.
+
+```
+870065b3608092586bf940c7f9c822fd96ea9a0d5d7b67ad160402b7d6d8eb43  token_analysis.py
+95deab651570ffd0c3443059cc0029f73f6aaa32bce8383e5074021be8e75b1b  tokens.txt
+```

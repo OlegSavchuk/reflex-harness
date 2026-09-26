@@ -114,3 +114,15 @@ def test_memory_line_and_summary_formatting():
     assert p.lines[1] == "[ FINAL ] VISIBLE TESTS ✓ · HIDDEN TESTS ✗ (1 failed, 3 passed in 0.40s) · STATIC CHECK ✗"
     assert "NOT FIXED" in p.lines[2] and "visible tests passed, hidden tests failed" in p.lines[2]
     assert pytest_summary({"summary": {"error": 2}, "duration_s": 1}) == "2 errors in 1.00s"
+
+
+def test_regression_attempt_line_counts_the_broken_tests():
+    p = Pretty(model="m", color=False, stream=open("/dev/null", "w"))
+    base = dict(config_id="focused", edited=["q.py::quote"], visible_passed=2, visible_total=5, error=None,
+                solved=False, rolled_back=True)
+    p("attempt", attempt_n=1, regressed=["t::a"], trigger="regression", **base)
+    p("attempt", attempt_n=2, regressed=["t::a", "t::b"], trigger="regression", **base)
+    p("attempt", attempt_n=3, regressed=["t::a"], trigger=None, **base)   # plain_retry: nothing triggered
+    assert p.lines[0].endswith("VISIBLE TESTS 2/5 · 1 previously passing test broke")
+    assert p.lines[1].endswith("VISIBLE TESTS 2/5 · 2 previously passing tests broke")
+    assert p.lines[2].endswith("VISIBLE TESTS 2/5")

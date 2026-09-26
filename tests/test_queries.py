@@ -1,6 +1,5 @@
 import dataclasses
 import json
-import os
 import shutil
 
 import pytest
@@ -81,7 +80,7 @@ def test_tampered_embedding_stops(tmp_path):
         load_query(task)
 
 
-@pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="needs Atlas")
+@pytest.mark.atlas
 def test_stored_embedding_matches_the_memory_index():
     from reflex_harness.pipelines import retrieval_pipeline
     from reflex_harness.queries import query_input
@@ -114,7 +113,7 @@ ATLAS_INTERNALS = ("ATLAS INTERNALS (Automated Embedding, Preview) not readable;
                    "vector check did NOT run")
 
 
-@pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="needs Atlas")
+@pytest.mark.atlas
 def test_atlas_internals_memory_vectors_are_int8_in_the_stored_query_space():
     """PREVIEW-DEPENDENT. Reads Automated Embedding's internal materialized view
     (`__mdb_internal_search`), an undocumented Preview detail that may change. If that store is not
@@ -123,7 +122,7 @@ def test_atlas_internals_memory_vectors_are_int8_in_the_stored_query_space():
     int8 with EMBED_DIMS values. scripts/check_embedding_space.py additionally shows a Voyage
     document embedding reproduces each stored vector byte for byte."""
     from bson.binary import BinaryVectorDtype
-    from pymongo.errors import PyMongoError
+    from pymongo.errors import ConnectionFailure, PyMongoError
 
     from reflex_harness.store import client, db
     index = next(i for i in db()["checkpoints"].list_search_indexes() if i["name"] == config.VECTOR_INDEX)
@@ -137,6 +136,8 @@ def test_atlas_internals_memory_vectors_are_int8_in_the_stored_query_space():
             pytest.skip(f"{ATLAS_INTERNALS}: no auto-embedding lease for `checkpoints`")
         view = internal[lease["materializedViewCollectionMetadata"]["collectionName"]]
         docs = list(view.find({"_id": {"$in": ids}}))
+    except ConnectionFailure:
+        raise  # a network failure is "Atlas unreachable" (conftest), not "internals not readable"
     except (PyMongoError, KeyError) as e:
         pytest.skip(f"{ATLAS_INTERNALS}: {type(e).__name__}: {e}")
     vecs = [d["_autoEmbed"]["failure_narrative"].as_vector() for d in docs]
@@ -144,7 +145,7 @@ def test_atlas_internals_memory_vectors_are_int8_in_the_stored_query_space():
     assert all(v.dtype == BinaryVectorDtype.INT8 and len(v.data) == config.EMBED_DIMS for v in vecs)
 
 
-@pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="needs Atlas")
+@pytest.mark.atlas
 def test_ten_repeated_retrievals_are_byte_identical():
     from reflex_harness.pipelines import retrieval_pipeline
     from reflex_harness.queries import query_input
