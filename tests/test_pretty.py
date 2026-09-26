@@ -90,7 +90,8 @@ def test_pretty_changes_output_only_never_the_stored_run(monkeypatch, capsys, ar
     assert plain == pretty                                   # attempts, prompts, decisions, runs, calls
     assert len(plain["attempts"]) == 3 and "'verified_fix': True" in plain["runs"][0]
     assert "attempt 1 [focused]" in plain_out and "attempt 1 [focused]" not in pretty_out   # no raw logs
-    assert "[ REFLEX ] task pp-dev-02 · arm " + arm in pretty_out
+    badge = "PLAIN AGENT" if arm == "plain_retry" else "REFLEX"
+    assert f"[ {badge} ] task pp-dev-02 · arm {arm}" in pretty_out
     assert "[ ATTEMPT 1 ] (focused) · editing net_pay → VISIBLE TESTS 5/6" in pretty_out
     assert "[ FINAL ] VISIBLE TESTS ✓ · HIDDEN TESTS ✓ (4 passed in " in pretty_out
     assert "STATIC CHECK ✓" in pretty_out and "FIXED  ·  $0.0030  ·  3,600 tokens" in pretty_out

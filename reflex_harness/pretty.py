@@ -71,7 +71,8 @@ class Pretty:
             handler(**data)
 
     def on_start(self, *, task_id, arm, budget, visible_passed, visible_total, **_):
-        self.out(f"{self.badge('REFLEX', 'blue')} task {self.tint(task_id, 'yellow')} · arm {arm} · "
+        label = "PLAIN AGENT" if arm == "plain_retry" else "REFLEX"
+        self.out(f"{self.badge(label, 'blue')} task {self.tint(task_id, 'yellow')} · arm {arm} · "
                  f"model {self.model} · budget {budget} attempts · seed: visible tests "
                  f"{visible_passed}/{visible_total}")
 
