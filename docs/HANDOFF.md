@@ -1,3 +1,6 @@
+> **Historical** — the session-start handoff. `docs/SPEC.md` is current. Since Gate 9 Phase 1
+> retrieval is semantic-only (the `$search`/`$rankFusion` plan below was removed).
+
 # Handoff — session state as of Sat Sept 26, ~10:50 ET
 
 You are continuing work on **Reflex** (`reflex-harness`) at the MongoDB Harness Engineering

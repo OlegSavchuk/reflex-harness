@@ -50,10 +50,8 @@ def test_memory_selection_uses_the_stored_query_and_never_the_narrator(monkeypat
     monkeypatch.setattr(narrator, "narrate_task", forbidden)
     monkeypatch.setattr(agent, "call", forbidden)
     monkeypatch.setattr(controller, "_log_embed", lambda *a, **k: None)
-    monkeypatch.setattr(controller, "lexical_match_count", lambda *a, **k: 0)
-    retrieved = [{"checkpoint_id": "c1", "family": "semantic_repetition",
-                  "fusion": {"value": 0.0164, "details": []}},
-                 {"checkpoint_id": "c2", "family": "oscillation", "fusion": {"value": 0.0161, "details": []}}]
+    retrieved = [{"checkpoint_id": "c1", "family": "semantic_repetition", "semantic_score": 0.80},
+                 {"checkpoint_id": "c2", "family": "oscillation", "semantic_score": 0.77}]
     selected = [{"_id": "dependency", "score": 0.5}]
     fake = {"attempts": _Coll(distinct=["focused"]), "checkpoints": _Coll(results=[retrieved, selected])}
     monkeypatch.setattr(controller, "db", lambda: fake)
@@ -69,47 +67,32 @@ def test_memory_selection_uses_the_stored_query_and_never_the_narrator(monkeypat
 @pytest.mark.skipif(not os.environ.get("MONGODB_URI"), reason="needs Atlas")
 def test_two_runs_retrieve_identical_top_k_from_the_fixed_query():
     from reflex_harness.pipelines import retrieval_pipeline
+    from reflex_harness.queries import query_input
     from reflex_harness.store import db
     q = load_query(TASK)
     runs = [list(db()["checkpoints"].aggregate(retrieval_pipeline(
-        q["narrative"], q["error_symbols"], config.SNAPSHOT_ID, config.PROTOCOL))) for _ in range(2)]
+        query_input(q), config.SNAPSHOT_ID, config.PROTOCOL))) for _ in range(2)]
     assert load_query(TASK)["query_sha256"] == q["query_sha256"]
     assert [r["checkpoint_id"] for r in runs[0]] == [r["checkpoint_id"] for r in runs[1]]
-    # scores: equal up to Automated Embedding's per-call query-embedding noise (measured <= 2e-4)
     for a, b in zip(*runs):
-        sa = next(d["value"] for d in a["fusion"]["details"] if d["inputPipelineName"] == "semantic")
-        sb = next(d["value"] for d in b["fusion"]["details"] if d["inputPipelineName"] == "semantic")
-        assert abs(sa - sb) < 1e-3
-
-
-def _memory_row(monkeypatch, lexical_count):
-    monkeypatch.setattr(controller, "_log_embed", lambda *a, **k: None)
-    monkeypatch.setattr(controller, "lexical_match_count", lambda *a, **k: lexical_count)
-
-    def doc(cid, fam, fusion, sem):
-        return {"checkpoint_id": cid, "family": fam, "fusion": {"value": fusion, "details": [
-            {"inputPipelineName": "lexical", "rank": 0, "weight": 1.0},
-            {"inputPipelineName": "semantic", "rank": 1 if sem > 0.78 else 2, "weight": 1.0, "value": sem}]}}
-    retrieved = [doc("c1", "semantic_repetition", 0.0164, 0.80), doc("c2", "oscillation", 0.0161, 0.77)]
-    fake = {"attempts": _Coll(distinct=["focused"]),
-            "checkpoints": _Coll(results=[retrieved, [{"_id": "dependency", "score": 0.5}]])}
-    monkeypatch.setattr(controller, "db", lambda: fake)
-    return controller.select_next("memory", task=TASK, run_id="r", phase="dev", attempt_n=1,
-                                  trigger="regression", configs={c["config_id"]: c for c in config.CONFIGS_R1},
-                                  snapshot="mem-v1", registry="r1", protocol="p1")
+        assert abs(a["semantic_score"] - b["semantic_score"]) < 1e-3
 
 
 def test_retrieval_diagnostics_logged_with_gate8_margin_definition(monkeypatch):
-    row = _memory_row(monkeypatch, lexical_count=0)
+    monkeypatch.setattr(controller, "_log_embed", lambda *a, **k: None)
+    retrieved = [{"checkpoint_id": "c1", "family": "semantic_repetition", "semantic_score": 0.80},
+                 {"checkpoint_id": "c2", "family": "oscillation", "semantic_score": 0.77}]
+    fake = {"attempts": _Coll(distinct=["focused"]),
+            "checkpoints": _Coll(results=[retrieved, [{"_id": "dependency", "score": 0.5}]])}
+    monkeypatch.setattr(controller, "db", lambda: fake)
+    row = controller.select_next("memory", task=TASK, run_id="r", phase="dev", attempt_n=1,
+                                 trigger="regression", configs={c["config_id"]: c for c in config.CONFIGS_R1},
+                                 snapshot="mem-v1", registry="r1", protocol="p1")
     r = row["retrieval"]
-    assert r["query_sha256"] == load_query(TASK)["query_sha256"]
-    assert abs(r["semantic_margin"] - (0.80 - 0.77)) < 1e-12 and r["lexical_matches"] == 0
-    assert [(t["rank"], t["family"], t["semantic_score"], t["lexical_rank"]) for t in row["retrieved"]] == \
-        [(1, "semantic_repetition", 0.80, 0), (2, "oscillation", 0.77, 0)]
+    assert r["query_sha256"] == load_query(TASK)["query_sha256"] and "lexical_matches" not in r
+    assert abs(r["semantic_margin"] - (0.80 - 0.77)) < 1e-12
+    assert [(t["rank"], t["family"], t["semantic_score"]) for t in row["retrieved"]] == \
+        [(1, "semantic_repetition", 0.80), (2, "oscillation", 0.77)]
     log = controller.selection_log("memory", "semantic_repetition", "solved", 1, [], row, 2)
     assert log["semantic_margin"] == r["semantic_margin"] and log["query_sha256"] == r["query_sha256"]
     assert [n["semantic_score"] for n in log["neighbours"]] == [0.80, 0.77]
-
-
-def test_lexical_diagnostic_never_changes_the_choice(monkeypatch):
-    assert _memory_row(monkeypatch, 0)["chosen_config_id"] == _memory_row(monkeypatch, 7)["chosen_config_id"]

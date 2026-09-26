@@ -37,6 +37,11 @@ def load_query(task: Task) -> dict:
     return q
 
 
+def query_input(q: dict):
+    """What $vectorSearch receives for this stored query."""
+    return q["narrative"]
+
+
 def make_query(task: Task, *, run_id: str) -> dict:
     """One narrator call on the seed; the same prompt as memory narratives, fix not known."""
     runner = LocalRunner()

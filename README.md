@@ -26,8 +26,8 @@ Reflex does not make the model smarter. It decides what the model gets to see.
   model created, with failures remaining).
 - **What to switch to — decided by MongoDB.** Development memory holds checkpoints: a failure
   situation plus the measured outcome of all four configurations from it. On intervention,
-  one aggregation pipeline retrieves the nearest checkpoints (`$rankFusion` over an Automated
-  Embedding `$vectorSearch` and an Atlas Search branch) and ranks the untried configurations
+  one aggregation pipeline retrieves the nearest checkpoints (semantic-only retrieval: a
+  `$vectorSearch` over Automated Embedding narratives) and ranks the untried configurations
   by a score of verified solves penalised by regressions,
   `(solves − 2 × regressions) / (support + 1)`, breaking ties by the nearest neighbour.
 - **Reset on switch.** The workspace is reset to the original code (hash-verified) before the
@@ -73,8 +73,9 @@ next configuration in a fixed order), `memory` (Reflex, MongoDB-selected configu
 - **Repeated-strategy detection is untested at eval.** Every family-B switch was triggered by
   a regression on the first attempt; the same-strategy rule fired 3 times in all, only on
   family A. Gate 8 tests *which* configuration to switch to, not *when*.
-- **Retrieval was effectively semantic-only.** Dev and eval tasks share no identifiers, so the
-  lexical branch of `$rankFusion` matched nothing.
+- **Retrieval was effectively semantic-only.** Dev and eval tasks share no identifiers, so
+  Gate 8's lexical branch (fused in `$rankFusion`) matched nothing. It has since been removed:
+  retrieval is semantic-only.
 - The tasks are small, purpose-built Python bugs that isolate one variable (what the model can
   see). They are not a general coding benchmark.
 
@@ -101,6 +102,8 @@ recorded in MongoDB.
 - More checkpoints per failure family.
 - Tasks where the first attempt does not regress, so repeated-strategy detection is tested.
 - A random-selection arm, run for real.
+- A lexical signal from structural tags (e.g. "raises inside the shared function",
+  "assertion-only failure") instead of identifiers, which never match across tasks.
 
 ## Roadmap (Gate 9, in progress)
 
@@ -108,7 +111,7 @@ Gate 8 stays frozen as the baseline. Gate 9 tests whether its findings hold on m
 less retrieval noise, a real random baseline, and a test of detection rather than only selection.
 
 - **Phase 0 — Housekeeping:** chart reproducible from the report; result files never silently ignored.
-- **Phase 1 — Harness fixes:** one fixed query per task, a real random-selection arm, per-run retrieval diagnostics, a decision on the lexical branch.
+- **Phase 1 — Harness fixes:** one fixed query per task, a real random-selection arm, per-run retrieval diagnostics, semantic-only retrieval (lexical branch removed).
 - **Phase 2 — More tasks:** 5 dev + 8 eval tasks per family (18 new), varied domains and layouts, protected tests that block every known hack.
 - **Phase 3 — Detection test:** tasks where attempt 1 makes partial progress without regressing, so switches must come from the same-strategy rule.
 - **Phase 4 — Open-choice tasks:** no configuration designed to win; the best one is measured after the fact.

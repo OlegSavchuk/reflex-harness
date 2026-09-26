@@ -13,7 +13,6 @@ PROTOCOL = "p1"          # attempt protocol; checkpoints must match to be retrie
 SNAPSHOT_ID = "mem-v1"   # frozen memory snapshot evaluation retrieves from
 
 VECTOR_INDEX = "ckpt_vec"
-TEXT_INDEX = "ckpt_text"
 EMBED_MODEL = "voyage-4"
 
 # The config each family is designed around (SPEC §12); logged as `designed_config` per run.

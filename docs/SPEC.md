@@ -248,14 +248,18 @@ Collections: `tasks`, `configs`, `attempts`, `checkpoints`, `decisions`, `calls`
 
 | Feature | Job | Why it's load-bearing |
 |---|---|---|
-| Automated Embedding (`autoEmbed`, voyage-4) | Embeds `failure_narrative` in-database, and embeds query text at query time | No embedding pipeline in our code |
-| Atlas Search (`$search`) | Lexical match on `error_symbols` | Exact function/test names matter |
-| `$rankFusion` | Fuses semantic + lexical rankings | Hybrid retrieval in one stage |
+| Automated Embedding (`autoEmbed`, voyage-4) | Embeds `failure_narrative` in-database; query text too, when a text query is used | No embedding pipeline for memory in our code |
+| `$vectorSearch` | **Semantic-only retrieval** of the nearest checkpoints, filtered inside the stage | The neighbourhood the decision is made from |
 | `$unwind/$group/$unionWith/$sort` | Turns retrieved evidence into **one config decision** | The database decides, not Python |
 | Change streams | Drive the live dashboard | Real-time split screen |
 
 Remove MongoDB and there is no memory, no retrieval, no selection — the harness has no basis
 for choosing a strategy.
+
+Retrieval is **semantic-only** since Gate 9 Phase 1. Gate 8 (frozen `26b79a7`) fused the vector
+search with a lexical `$search` branch on `error_symbols` in `$rankFusion`; that branch matched
+nothing (0 shared tokens across 28 task pairs, 0 eval matches, no Gate 8 decision changed) and
+was removed. `error_symbols` are still stored and used by the narrator's validator.
 
 ### 9.2 Write path per attempt
 
@@ -310,35 +314,29 @@ Budget: 4 dev checkpoints (2 per family) × 4 configs = 16 trials + 8 attempts t
 
 ### 9.4 Retrieval settings (frozen)
 
-Semantic branch: `$vectorSearch` on `failure_narrative`, `limit 4`, `numCandidates 40`.
-Lexical branch: `$search` on `error_symbols`, `limit 4`. Equal weights.
-Both filtered by `snapshot_id` and `compat.protocol` **inside** the search stage.
-Final neighborhood: **top 2** checkpoints, chosen **before** excluding tried configs.
+Semantic-only: one `$vectorSearch` on `failure_narrative`, `limit 4`, `numCandidates 40`,
+filtered by `snapshot_id` and `compat.protocol` **inside** the stage. Scores are
+`vectorSearchScore`. Final neighborhood: **top 2** checkpoints, chosen **before** excluding
+tried configs.
 
 ### 9.5 Selection pipeline (`pipelines.py`) — ranks every untried config; row 0 is the choice
 
 ```python
-def selection_pipeline(narrative, symbols, snapshot_id, protocol, registry, tried):
+def _vector_search(query, snapshot_id, protocol):          # semantic-only retrieval
+    return {"$vectorSearch": {
+        "index": "ckpt_vec", "path": "failure_narrative",
+        "query" if isinstance(query, str) else "queryVector": query,
+        "numCandidates": 40, "limit": 4,
+        "filter": {"snapshot_id": snapshot_id, "compat.protocol": protocol}}}
+
+def selection_pipeline(query, snapshot_id, protocol, registry, tried):
     return [
-      {"$rankFusion": {
-        "input": {"pipelines": {
-          "semantic": [{"$vectorSearch": {
-              "index": "ckpt_vec", "path": "failure_narrative",
-              "query": narrative, "numCandidates": 40, "limit": 4,
-              "filter": {"snapshot_id": snapshot_id, "compat.protocol": protocol}}}],
-          "lexical": [
-              {"$search": {"index": "ckpt_text", "compound": {
-                  "must":   [{"text": {"query": symbols, "path": "error_symbols"}}],
-                  "filter": [{"equals": {"path": "snapshot_id", "value": snapshot_id}},
-                             {"equals": {"path": "compat.protocol", "value": protocol}}]}}},
-              {"$limit": 4}]}},
-        "combination": {"weights": {"semantic": 1, "lexical": 1}},
-        "scoreDetails": True}},
+      _vector_search(query, snapshot_id, protocol),
       {"$limit": 2},
-      {"$project": {"checkpoint_id": 1, "fusion": {"$meta": "scoreDetails"},
+      {"$project": {"checkpoint_id": 1, "semantic_score": {"$meta": "vectorSearchScore"},
           "outcomes": {"$filter": {"input": "$outcomes",
               "cond": {"$not": {"$in": ["$$this.config_id", tried]}}}}}},
-      {"$setWindowFields": {"sortBy": {"fusion.value": -1},       # rank 1 = nearest neighbour
+      {"$setWindowFields": {"sortBy": {"semantic_score": -1},     # rank 1 = nearest neighbour
           "output": {"rank": {"$documentNumber": {}}}}},
       {"$unwind": "$outcomes"},
       {"$group": {"_id": "$outcomes.config_id", "support": {"$sum": 1},
@@ -376,16 +374,16 @@ Notes:
   protected tests reject teaches the wrong lesson. Formula unchanged. (Decided before any
   measurement.)
 - **Tie-break by rank, not cost.** On a score tie, the config verified-solved by the nearest
-  neighbour (lowest fusion rank) wins; `mean_cost` decides only when rank can't. With a
+  neighbour (highest semantic score) wins; `mean_cost` decides only when rank can't. With a
   mixed-family top 2, each family's winner gets one solve and they tie; the old cost tie-break
   then always picked `dependency` (family-B trials are cheap) — wrong for family A.
 - No final `$limit`: the pipeline returns the full sorted candidate table; Python takes row 0
-  and stores the table in `decisions.candidates` for the dashboard. `retrieved` (with fusion
-  scores) comes from `retrieval_pipeline()`, which shares the same `$rankFusion` stage.
+  and stores the table in `decisions.candidates` for the dashboard. `retrieved` (with semantic
+  scores) comes from `retrieval_pipeline()`, which shares the same `$vectorSearch` stage.
 - Python labels `insufficient_evidence` if fewer than 2 checkpoints came back.
   Empty result → `configurations_exhausted` → stop.
-- **Gate 1 must verify** `$vectorSearch` with `autoEmbed` works *inside* `$rankFusion`.
-  Fallback: manual Voyage embeddings (`VOYAGE_BASE_URL`, `voyage-4`) + `queryVector`. Disclose.
+- Gate 1 verified `$vectorSearch` over Automated Embedding (then inside `$rankFusion`; the
+  lexical branch was removed in Gate 9 Phase 1).
 
 ---
 
@@ -661,7 +659,7 @@ on family A; under the verified-fix standard it is **0/10**.
 
 Dashboard (`dashboard/`): FastAPI, one change stream on `attempts` + `decisions`, SSE to one
 HTML page. Panels: per-arm attempt timeline (red/green), current config, trigger that fired,
-Jev probability + failure_shape, **retrieved checkpoints with narratives and fusion scores
+Jev probability + failure_shape, **retrieved checkpoints with narratives and semantic scores
 beside the current narrative**, candidate table (support/solves/regressions/score), chosen
 config, cost breakdown, final comparison table.
 
@@ -712,7 +710,7 @@ CLAUDE.md            # schemas, indexes, coding rules
 | # | Gate | Passes when |
 |---|---|---|
 | 0 | Connectivity | `scripts/smoke_test.py` 4/4 |
-| 1 | Atlas retrieval | Both indexes built; fixture checkpoints searchable; paraphrased narrative retrieves the right one via `$rankFusion`; selection pipeline returns a config; changing an outcome changes the choice. Fixtures are plumbing, never results — delete before building memory |
+| 1 | Atlas retrieval | Both indexes built; fixture checkpoints searchable; paraphrased narrative retrieves the right one via `$vectorSearch` (Gate 8: `$rankFusion`); selection pipeline returns a config; changing an outcome changes the choice. Fixtures are plumbing, never results — delete before building memory |
 | 2 | Runner + evaluator | A patch can pass or fail; allowlist rejects test edits; protected verification works |
 | 3 | Configs + context | Same checkpoint runs under all 4 configs with visibly different prompts |
 | 4 | Tasks | 8 tasks validated (seed fails, reference passes); model calibration: `focused` fails, the right config succeeds on at least one dev task |
@@ -733,7 +731,7 @@ submission. No new features in that window.
 | If | Then |
 |---|---|
 | `autoEmbed` fails or is blocked by sandbox policy | Ask MongoDB staff immediately; fallback to manual Voyage + `queryVector`; disclose |
-| `$vectorSearch` won't run inside `$rankFusion` | Run branches separately, fuse with RRF in Python; disclose |
+| Automated Embedding query path unusable | Stored int8 query vector as `queryVector` (Gate 9) |
 | Jev fails smoke gate | Rules-only; Jev shown as future work. **Taken at Gate 5** (§10) |
 | Model solves everything under `focused` | Weaker model; re-calibrate |
 | Model fails even with right context | Stronger model (`google/gemini-3.8-flash-20260902`) |
@@ -812,4 +810,5 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | Gate 9 P1 | **Fixed query per task**: generated once (`scripts/make_queries.py`, one narrator call per task), stored with its sha256 in `tasks/<id>/query.json`, reused for every run and repeat; decisions log `query_sha256`; the narrator never runs at eval time | Gate 8: the narrative was regenerated per run, so the same task retrieved different neighbours across repeats (both family-B misroutes). Residual noise: Automated Embedding re-embeds the query per call, scores vary by up to ~2e-4 for identical text |
 | Gate 9 P1 | **`random` arm**: identical to fallback/memory except the switch target is uniform over untried configs, seeded by sha256(`task_id:repeat`) (`controller.random_seed`); `run_suite.py --repeat N`; decisions and runs log `random_seed` and `repeat` | Gate 8's random baseline (~1/3 on family B) was analytical, not run |
 | Gate 9 P1 | **Retrieval diagnostics per memory decision/run**: top-1/top-2 id, family, fusion score, semantic score and semantic/lexical ranks (from `$rankFusion` scoreDetails — the exact scores the ranking used), `semantic_margin` = top-1 − top-2 semantic score (Gate 8 definition), `lexical_matches` (a `$search` count computed after the choice; never feeds ranking), `query_sha256`; random arm logs `random_seed`/`repeat` | Check: on all 15 Gate 8 memory decisions, scoreDetails margins equal Gate 8's recomputed margins to 3 decimals (full-precision differences ≤ 1.7e-4 = per-call query-embedding noise). Lexical branch left unchanged pending a decision |
+| Gate 9 P1 | **Retrieval is semantic-only**: `$rankFusion` and the lexical `$search` branch removed; one `$vectorSearch` stage (a fusion over one branch adds nothing: its ranking is the branch order and its score, 1/(60+rank), discards the similarity the margins need). `lexical_matches` diagnostic removed; `ckpt_text` no longer created | Evidence: 0 shared tokens across all 28 task pairs (symbols = focal name + failing test names after the exception stoplist); 0 lexical matches for every eval query; in all 15 Gate 8 memory decisions every lexical rank was 0 and the fused top-2 equalled the semantic-only top-2. Gate 1 re-run: 22/22 |
 

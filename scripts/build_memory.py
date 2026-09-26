@@ -119,14 +119,9 @@ def wait_searchable(snapshot, n, timeout_s=300):
     vec = [{"$vectorSearch": {"index": config.VECTOR_INDEX, "path": "failure_narrative", "query": "agent",
                               "numCandidates": 50, "limit": 20, "filter": {"snapshot_id": snapshot}}},
            {"$count": "n"}]
-    txt = [{"$search": {"index": config.TEXT_INDEX, "compound": {
-        "must": [{"exists": {"path": "error_symbols"}}],
-        "filter": [{"equals": {"path": "snapshot_id", "value": snapshot}}]}}}, {"$count": "n"}]
     t0 = time.time()
     while time.time() - t0 < timeout_s:
-        nv = next(ckpt.aggregate(vec), {"n": 0})["n"]
-        nt = next(ckpt.aggregate(txt), {"n": 0})["n"]
-        if nv == nt == n:
+        if next(ckpt.aggregate(vec), {"n": 0})["n"] == n:
             return True, time.time() - t0
         time.sleep(5)
     return False, time.time() - t0

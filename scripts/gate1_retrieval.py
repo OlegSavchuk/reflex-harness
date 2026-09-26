@@ -1,7 +1,7 @@
 """Gate 1: Atlas retrieval + selection, end to end, on throwaway fixtures.
 
 Inserts 6 labelled fixture checkpoints under a separate snapshot id, waits until both
-search indexes see them, runs paraphrased queries through $rankFusion, checks the
+vector index sees them, runs paraphrased queries through the semantic $vectorSearch stage, checks the
 selection pipeline (full sorted candidate table) against a Python reference of the same
 scoring rule, checks a diagnostics-only solve does not count, flips one outcome and checks
 the choice changes, then deletes the fixtures.
@@ -112,12 +112,6 @@ def fixture_docs():
             for cid, fam, narr, syms, outs in FIXTURES]
 
 
-def pipeline_ranks(fusion):
-    """{pipeline_name: rank} from $rankFusion scoreDetails; absent = not returned by that branch."""
-    return {d["inputPipelineName"]: d["rank"] for d in (fusion or {}).get("details", [])
-            if d.get("rank")}
-
-
 def reference_choice(neighborhood, registry_configs, tried):
     """Python restatement of the frozen selection rule, used only to cross-check the pipeline.
     Sort: score desc, nearest solving neighbour's rank asc, mean_cost asc, order asc."""
@@ -150,17 +144,12 @@ def wait_searchable(ckpt, n, timeout_s=300):
     vec = [{"$vectorSearch": {"index": config.VECTOR_INDEX, "path": "failure_narrative",
                               "query": "agent failure", "numCandidates": 100, "limit": 20,
                               "filter": {"snapshot_id": FX_SNAPSHOT}}}, {"$count": "n"}]
-    txt = [{"$search": {"index": config.TEXT_INDEX, "compound": {
-               "must": [{"exists": {"path": "error_symbols"}}],
-               "filter": [{"equals": {"path": "snapshot_id", "value": FX_SNAPSHOT}}]}}},
-           {"$count": "n"}]
     t0 = time.time()
     while True:
         nv = next(ckpt.aggregate(vec), {"n": 0})["n"]
-        nt = next(ckpt.aggregate(txt), {"n": 0})["n"]
-        if (nv == n and nt == n) or time.time() - t0 > timeout_s:
-            return nv, nt, time.time() - t0
-        print(f"  ...  searchable: vector {nv}/{n}, text {nt}/{n} ({time.time() - t0:.0f}s)")
+        if nv == n or time.time() - t0 > timeout_s:
+            return nv, time.time() - t0
+        print(f"  ...  searchable: vector {nv}/{n} ({time.time() - t0:.0f}s)")
         time.sleep(5)
 
 
@@ -182,24 +171,19 @@ def probe_query_form(ckpt):
 
 def show(neighborhood):
     for i, ck in enumerate(neighborhood, 1):
-        r = pipeline_ranks(ck.get("fusion"))
         print(f"        #{i} {ck['checkpoint_id']:<9} {ck['family']:<20} "
-              f"fusion={ck['fusion']['value']:.5f} semantic_rank={r.get('semantic', '-')} "
-              f"lexical_rank={r.get('lexical', '-')}")
+              f"semantic_score={ck['semantic_score']:.4f}")
 
 
 def run_query(ckpt, family, target, narrative, symbols, registry_configs):
     print(f"\n[query] {family} paraphrase (target {target})")
-    hood = list(ckpt.aggregate(retrieval_pipeline(narrative, symbols, FX_SNAPSHOT, config.PROTOCOL)))
+    hood = list(ckpt.aggregate(retrieval_pipeline(narrative, FX_SNAPSHOT, config.PROTOCOL)))
     show(hood)
     check("neighborhood has 2 checkpoints", len(hood) == 2, f"got {len(hood)}")
     if not hood:
         return None, None
     check("top-1 is the paraphrased checkpoint", hood[0]["checkpoint_id"] == target,
           f"got {hood[0]['checkpoint_id']}")
-    check("semantic branch ranked target #1 (autoEmbed inside $rankFusion)",
-          pipeline_ranks(hood[0]["fusion"]).get("semantic") == 1,
-          f"semantic ranks: {[pipeline_ranks(h['fusion']).get('semantic') for h in hood]}")
     if any(h["family"] != family for h in hood):
         print(f"  WARN  neighborhood mixes families: {[h['family'] for h in hood]}")
 
@@ -227,7 +211,7 @@ def run_query(ckpt, family, target, narrative, symbols, registry_configs):
 
 
 def select(ckpt, narrative, symbols, tried):
-    return list(ckpt.aggregate(selection_pipeline(narrative, symbols, FX_SNAPSHOT, config.PROTOCOL,
+    return list(ckpt.aggregate(selection_pipeline(narrative, FX_SNAPSHOT, config.PROTOCOL,
                                                   config.REGISTRY, tried)))
 
 
@@ -244,7 +228,7 @@ def main():
                  f"found {len(registry_configs)}; run scripts/seed_configs.py"):
         sys.exit(1)
     idx = {i["name"]: i for i in ckpt.list_search_indexes()}
-    for name in (config.VECTOR_INDEX, config.TEXT_INDEX):
+    for name in (config.VECTOR_INDEX,):
         if not check(f"{name} queryable", bool(idx.get(name, {}).get("queryable")),
                      f"status={idx.get(name, {}).get('status', 'missing')}"):
             sys.exit("run: python scripts/create_indexes.py --wait")
@@ -257,9 +241,8 @@ def main():
         print("\n[fixtures]")
         ckpt.insert_many(fixture_docs())
         print(f"  inserted {len(FIXTURES)} fixtures under snapshot_id={FX_SNAPSHOT!r}")
-        nv, nt, secs = wait_searchable(ckpt, len(FIXTURES))
-        check("all fixtures searchable (autoEmbed + text)", nv == nt == len(FIXTURES),
-              f"vector {nv}, text {nt}, after {secs:.0f}s")
+        nv, secs = wait_searchable(ckpt, len(FIXTURES))
+        check("all fixtures searchable (autoEmbed)", nv == len(FIXTURES), f"vector {nv}, after {secs:.0f}s")
 
         forms = probe_query_form(ckpt)
         print(f"        autoEmbed query forms: {forms}")
@@ -273,7 +256,7 @@ def main():
             ckpt.update_one({"checkpoint_id": hood[0]["checkpoint_id"]},
                             {"$set": {"outcomes.$[x].solved": False, "outcomes.$[x].regression": True}},
                             array_filters=[{"x.config_id": chosen["_id"]}])
-            hood2 = list(ckpt.aggregate(retrieval_pipeline(narr, syms, FX_SNAPSHOT, config.PROTOCOL)))
+            hood2 = list(ckpt.aggregate(retrieval_pipeline(narr, FX_SNAPSHOT, config.PROTOCOL)))
             check("same neighborhood after flip",
                   [h["checkpoint_id"] for h in hood2] == [h["checkpoint_id"] for h in hood])
             after = next(iter(select(ckpt, narr, syms, ["focused"])), None)
@@ -292,7 +275,7 @@ def main():
                     o("focused", False, False, 0.02), o("caller", solver == "caller", False, 0.09),
                     o("dependency", solver == "dependency", False, 0.01), o("diagnostic", False, False, 0.05)]}})
             tied = select(ckpt, narr, syms, ["focused"])
-            hood3 = list(ckpt.aggregate(retrieval_pipeline(narr, syms, FX_SNAPSHOT, config.PROTOCOL)))
+            hood3 = list(ckpt.aggregate(retrieval_pipeline(narr, FX_SNAPSHOT, config.PROTOCOL)))
             ref = reference_choice(hood3, registry_configs, ["focused"])
             check("scores tie between caller and dependency",
                   len(tied) >= 2 and tied[0]["score"] == tied[1]["score"],

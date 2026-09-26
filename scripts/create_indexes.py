@@ -1,5 +1,8 @@
 """Create every index Reflex needs. Idempotent: existing indexes are left as they are.
 
+Retrieval is semantic-only (Gate 9 P1): one Automated Embedding vector index. The Atlas Search
+index `ckpt_text` used by Gate 8's lexical branch is no longer created or used.
+
 Usage: python scripts/create_indexes.py [--wait]
   --wait   poll until both search indexes are queryable (up to 10 min)
 """
@@ -30,10 +33,6 @@ SEARCH = {
          "model": config.EMBED_MODEL},
         {"type": "filter", "path": "snapshot_id"},
         {"type": "filter", "path": "compat.protocol"}]}),
-    config.TEXT_INDEX: ("search", {"mappings": {"dynamic": False, "fields": {
-        "error_symbols": {"type": "string", "analyzer": "lucene.whitespace"},
-        "snapshot_id": {"type": "token"},
-        "compat": {"type": "document", "fields": {"protocol": {"type": "token"}}}}}}),
 }
 
 

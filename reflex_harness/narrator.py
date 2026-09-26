@@ -86,7 +86,7 @@ def _crash_lines(report) -> dict[str, str]:
 
 
 # Built-in exception class names carry no task signal and match across families
-# (AssertionError is in almost every failure), so they never enter the lexical field.
+# (AssertionError is in almost every failure), so they never enter error_symbols.
 BUILTIN_EXCEPTIONS = frozenset(n for n in dir(builtins) if isinstance(getattr(builtins, n), type)
                                and issubclass(getattr(builtins, n), BaseException))
 

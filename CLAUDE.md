@@ -42,12 +42,12 @@ selection pipeline, Jev contract, task suite, evaluation protocol, build gates.
 
 - Atlas Hackathon Sandbox, M10, MongoDB 8.0.x, AWS single region.
 - Available: `$vectorSearch`, `$search`, `$rankFusion`, change streams, `$unionWith`.
+  Reflex retrieval is **semantic-only**: one `$vectorSearch` stage (no `$search`/`$rankFusion`).
 - NOT available on 8.0: `$scoreFusion` (8.2+), `$rerank` (8.3). Do not use them.
 - Automated Embedding (`autoEmbed`) is a Preview feature; requires storage
   auto-scaling. Embeddings are generated asynchronously — poll until searchable.
 - `$vectorSearch` and `$search` must be the first stage of their pipeline.
   Filter inside the stage (`filter` / compound `filter`), not with `$match` before it.
-- `$rankFusion` input pipelines cannot modify documents; group/score after fusion.
 
 ## Database: `reflex`
 
@@ -111,8 +111,8 @@ Indexes:
 - Vector search `ckpt_vec`:
   `{"fields": [{"type": "autoEmbed", "modality": "text", "path": "failure_narrative", "model": "voyage-4"},
   {"type": "filter", "path": "snapshot_id"}, {"type": "filter", "path": "compat.protocol"}]}`
-- Atlas Search `ckpt_text`: `error_symbols` as `string` with `lucene.whitespace`;
-  `snapshot_id` and `compat.protocol` as `token`.
+- (Atlas Search `ckpt_text` on `error_symbols` was Gate 8's lexical branch; removed in Gate 9 P1 —
+  retrieval is semantic-only.)
 - Regular: unique `{checkpoint_id: 1}`.
 
 Query form for autoEmbed (verify at gate 1): `$vectorSearch` with `query: "<text>"`
@@ -152,7 +152,7 @@ Indexes: `{run_id: 1, attempt_n: 1}`, `{task_id: 1, phase: 1}`.
 ### Collection: `decisions` — one row per intervention
 
 `run_id`, `task_id`, `attempt_n`, `trigger`, `tried_config_ids` (list),
-`retrieved` (list of `{checkpoint_id, fusion_score}`), `candidates` (the full sorted
+`retrieved` (list of `{rank, checkpoint_id, family, semantic_score}`), `candidates` (the full sorted
 table the selection pipeline returns: per-config support/solves/regressions/mean_cost/score),
 `chosen_config_id` (row 0),
 `reset` (`{from_config, to_config, seed_hash, tree_hash, seed_hash_verified}` on every switch),
@@ -168,7 +168,8 @@ table the selection pipeline returns: per-config support/solves/regressions/mean
 `shared_attempt` (`{run_id, cost_usd}` of the attempt 1 replayed in every arm; its cost is
 included in `cost_usd`), `snapshot_id` (memory arm), and the Gate 8 fields (SPEC §13.4):
 `switch_attempt`, `triggers`, `neighbours` (top-1/top-2 `{rank, checkpoint_id, family,
-fusion_score}`, memory arm only), `chosen_config`, `designed_config`, `chosen_matches_designed`,
+semantic_score}`, memory arm only), `semantic_margin`, `query_sha256`, `random_seed`, `repeat`,
+`chosen_config`, `designed_config`, `chosen_matches_designed`,
 `pre_selection_end`; `created_at`.
 
 ### Collection: `calls` — cost ledger, one row per external call

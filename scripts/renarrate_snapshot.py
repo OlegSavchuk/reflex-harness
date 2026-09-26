@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from reflex_harness import config  # noqa: E402
 from reflex_harness.context import pin_focal  # noqa: E402
 from reflex_harness.jev import diff_excerpt  # noqa: E402
-from reflex_harness.narrator import BUILTIN_EXCEPTIONS, forbidden_tokens, narrate_task, task_symbols  # noqa: E402
+from reflex_harness.narrator import forbidden_tokens, narrate_task, task_symbols  # noqa: E402
 from reflex_harness.runner import LocalRunner, load_task  # noqa: E402
 from reflex_harness.store import db  # noqa: E402
 
@@ -67,7 +67,7 @@ def main():
         print(f"  new: {narrative}{'  INVALID ' + str(violations) if violations else ''}")
         print(f"  symbols: {d['error_symbols']}  ->  {symbols}")
 
-    # wait until the new narratives are embedded and symbols re-indexed. Voyage embeds documents
+    # wait until the new narratives are embedded. Voyage embeds documents
     # and queries with different input types, so identical text scores ~0.93-0.95, not 1.0:
     # the discriminating check is that each doc now scores higher for its new text than its old.
     def self_score(q, cid):
@@ -84,12 +84,9 @@ def main():
         fresh = list(ckpt.find({"snapshot_id": args.snapshot}))
         ok_vec = all(self_score(f["failure_narrative"], f["checkpoint_id"])
                      > self_score(f["renarrated"]["previous_narrative"], f["checkpoint_id"]) for f in fresh)
-        stale = sum(1 for _ in ckpt.aggregate([{"$search": {"index": config.TEXT_INDEX, "compound": {
-            "must": [{"text": {"query": " ".join(sorted(BUILTIN_EXCEPTIONS)), "path": "error_symbols"}}],
-            "filter": [{"equals": {"path": "snapshot_id", "value": args.snapshot}}]}}}]))
-        if ok_vec and stale == 0:
+        if ok_vec:
             print(f"\nre-embedded and re-indexed after {time.time() - t0:.0f}s (every doc scores higher for "
-                  f"its new narrative than its old one; no exception names left in the text index)")
+                  f"its new narrative than its old one)")
             return
         time.sleep(5)
     sys.exit("timed out waiting for re-embedding / re-indexing")

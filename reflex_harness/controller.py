@@ -165,7 +165,7 @@ from datetime import datetime, timezone  # noqa: E402
 from . import config as _config  # noqa: E402
 from . import prices  # noqa: E402
 from .context import focal_region, pin_focal  # noqa: E402
-from .queries import load_query  # noqa: E402
+from .queries import load_query, query_input  # noqa: E402
 from .pipelines import retrieval_pipeline, selection_pipeline  # noqa: E402
 from .runner import DirtyTreeError, load_task, reset_to_seed, tree_hash  # noqa: E402
 from .store import db, log_call  # noqa: E402
@@ -184,22 +184,6 @@ def _log_embed(run_id: str, phase: str, attempt_n: int, text: str, latency_ms: i
     log_call(run_id=run_id, phase=phase, attempt_n=attempt_n, component="embed",
              model=_config.EMBED_MODEL, input_tokens=tokens, output_tokens=0,
              cost_usd=tokens * prices.VOYAGE_4_PER_TOKEN, latency_ms=latency_ms, estimated=True)
-
-
-def _detail(doc: dict, pipeline: str, key: str):
-    return next((d.get(key) for d in (doc.get("fusion") or {}).get("details", [])
-                 if d.get("inputPipelineName") == pipeline), None)
-
-
-def lexical_match_count(symbols: str, snapshot: str, protocol: str) -> int:
-    """Diagnostic only (never feeds ranking or selection): how many checkpoints in the snapshot
-    the lexical branch matches for these symbols. No model call."""
-    return next(db()["checkpoints"].aggregate([
-        {"$search": {"index": _config.TEXT_INDEX, "compound": {
-            "must": [{"text": {"query": symbols, "path": "error_symbols"}}],
-            "filter": [{"equals": {"path": "snapshot_id", "value": snapshot}},
-                       {"equals": {"path": "compat.protocol", "value": protocol}}]}}},
-        {"$count": "n"}]), {"n": 0})["n"] if symbols.strip() else 0
 
 
 def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigger: str,
@@ -224,12 +208,13 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
     else:
         q = load_query(task)  # fixed per task (tasks/<id>/query.json); the narrator never runs here
         narrative, symbols, violations = q["narrative"], q["error_symbols"], q["narrative_violations"]
+        query = query_input(q)
         ckpt = db()["checkpoints"]
         t0 = _time.monotonic()
-        retrieved = list(ckpt.aggregate(retrieval_pipeline(narrative, symbols, snapshot, protocol)))
+        retrieved = list(ckpt.aggregate(retrieval_pipeline(query, snapshot, protocol)))
         _log_embed(run_id, phase, attempt_n, narrative, int((_time.monotonic() - t0) * 1000))
         t0 = _time.monotonic()
-        rows = list(ckpt.aggregate(selection_pipeline(narrative, symbols, snapshot, protocol, registry, tried)))
+        rows = list(ckpt.aggregate(selection_pipeline(query, snapshot, protocol, registry, tried)))
         _log_embed(run_id, phase, attempt_n, narrative, int((_time.monotonic() - t0) * 1000))
         if not rows:
             status, chosen = "configurations_exhausted", None
@@ -238,20 +223,16 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
         else:
             status, chosen = "selected", rows[0]["_id"]
         top = [{"rank": i, "checkpoint_id": r["checkpoint_id"], "family": r.get("family"),
-                "failure_narrative": r.get("failure_narrative"),
-                "fusion_score": (r.get("fusion") or {}).get("value"),
-                "semantic_score": _detail(r, "semantic", "value"),
-                "semantic_rank": _detail(r, "semantic", "rank"),
-                "lexical_rank": _detail(r, "lexical", "rank")} for i, r in enumerate(retrieved, 1)]
+                "failure_narrative": r.get("failure_narrative"), "semantic_score": r.get("semantic_score")}
+               for i, r in enumerate(retrieved, 1)]
         sem = [t["semantic_score"] for t in top]
         row.update(narrative=narrative, narrative_violations=violations, error_symbols=symbols,
                    query_sha256=q["query_sha256"], retrieved=top,
                    candidates=rows, chosen_config_id=chosen, status=status)
-        # diagnostics, computed after the choice; same margin definition as Gate 8 (top-1 - top-2)
+        # diagnostics; same margin definition as Gate 8 (top-1 minus top-2 semantic score)
         row["retrieval"] = {
             "query_sha256": q["query_sha256"],
-            "semantic_margin": (sem[0] - sem[1]) if len(sem) > 1 and None not in sem[:2] else None,
-            "lexical_matches": lexical_match_count(symbols, snapshot, protocol)}
+            "semantic_margin": (sem[0] - sem[1]) if len(sem) > 1 and None not in sem[:2] else None}
     return row
 
 
@@ -303,14 +284,13 @@ def selection_log(arm: str, family: str, stop: str | None, switch_at: int | None
     else:
         pre = stop
     neighbours = [{"rank": i, "checkpoint_id": r["checkpoint_id"], "family": r.get("family"),
-                   "fusion_score": r.get("fusion_score"), "semantic_score": r.get("semantic_score")}
+                   "semantic_score": r.get("semantic_score")}
                   for i, r in enumerate((row or {}).get("retrieved") or [], 1)] or None
     retrieval = (row or {}).get("retrieval") or {}
     return {"switch_attempt": switch_at, "triggers": triggers, "neighbours": neighbours,
             "random_seed": (row or {}).get("random_seed"),
             "query_sha256": retrieval.get("query_sha256"),
             "semantic_margin": retrieval.get("semantic_margin"),
-            "lexical_matches": retrieval.get("lexical_matches"),
             "chosen_config": chosen, "designed_config": designed,
             "chosen_matches_designed": (chosen == designed) if chosen else None,
             "pre_selection_end": pre}
