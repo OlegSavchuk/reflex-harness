@@ -1,0 +1,283 @@
+{
+ "stamp": "20260926T184549",
+ "results": [
+  {
+   "task_id": "osc-dev-03",
+   "family": "oscillation",
+   "split": "dev",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-dev-03-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "soundmix/ui/mixer.py::<module>",
+    "soundmix/ui/mixer.py::channel_output"
+   ],
+   "failing_after": [],
+   "note": "Convert the mixer\u2019s decibel fader value to linear gain before applying it, preserving apply_gain\u2019s linear-gain contract.",
+   "error": null,
+   "cost_usd": 0.000356
+  },
+  {
+   "task_id": "osc-dev-04",
+   "family": "oscillation",
+   "split": "dev",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-dev-04-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "weather/us_import.py::feels_like_f"
+   ],
+   "failing_after": [],
+   "note": "Convert US feed temperatures to Celsius for the shared calculation, then convert the rounded result back to Fahrenheit.",
+   "error": null,
+   "cost_usd": 0.000311
+  },
+  {
+   "task_id": "osc-dev-05",
+   "family": "oscillation",
+   "split": "dev",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-dev-05-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "catalog/api/export.py::export_batch"
+   ],
+   "failing_after": [],
+   "note": "Convert the export API\u2019s 0-based cursor to page_slice\u2019s 1-based page number.",
+   "error": null,
+   "cost_usd": 0.000242
+  },
+  {
+   "task_id": "osc-eval-03",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-03-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "lending/adapters/broker_feed.py::quote_from_feed"
+   ],
+   "failing_after": [],
+   "note": "Convert broker-feed percentage rates to fractions before calling monthly_payment, matching its documented input convention.",
+   "error": null,
+   "cost_usd": 0.000252
+  },
+  {
+   "task_id": "osc-eval-04",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-04-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "sprites/editor/tools.py::<module>",
+    "sprites/editor/tools.py::rotate_handle"
+   ],
+   "failing_after": [],
+   "note": "Convert editor handle angles from degrees to radians before calling the shared rotation function.",
+   "error": null,
+   "cost_usd": 0.000227
+  },
+  {
+   "task_id": "osc-eval-05",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-05-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "vault/quota.py::plan"
+   ],
+   "failing_after": [],
+   "note": "Convert quota settings from KiB to bytes before block accounting, matching blocks_needed's byte-based input.",
+   "error": null,
+   "cost_usd": 0.00031
+  },
+  {
+   "task_id": "osc-eval-06",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-06-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "photokit/cli/manual.py::<module>",
+    "photokit/cli/manual.py::manual_crop"
+   ],
+   "failing_after": [],
+   "note": "Manual crop rectangles are already in pixel coordinates, so return them directly instead of passing them to the normalized-box converter.",
+   "error": null,
+   "cost_usd": 0.00028
+  },
+  {
+   "task_id": "osc-eval-07",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-07-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "dispatch/drones.py::drone_eta"
+   ],
+   "failing_after": [],
+   "note": "Convert drone airspeed from metres per second to km/h before estimating travel time.",
+   "error": null,
+   "cost_usd": 0.000269
+  },
+  {
+   "task_id": "osc-eval-08",
+   "family": "oscillation",
+   "split": "eval",
+   "designed_config": "caller",
+   "run_id": "dryrun-osc-eval-08-20260926T184549",
+   "outcome": "diag-only",
+   "edited": [
+    "palette/core/mix.py::blend",
+    "palette/core/mix.py::channel_kind"
+   ],
+   "failing_after": [],
+   "note": "Added normalized-float RGB support with validation and 8-bit-compatible blending, while preserving integer blending behavior.",
+   "error": null,
+   "cost_usd": 0.0012
+  },
+  {
+   "task_id": "sem-dev-03",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-dev-03-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "stockroom/reorder.py::<module>",
+    "stockroom/reorder.py::reorder_summary",
+    "stockroom/rules.py::needs_reorder"
+   ],
+   "failing_after": [],
+   "note": "Use the minimum stock level to determine reorder eligibility and summarize only the resulting reorder quantities.",
+   "error": null,
+   "cost_usd": 0.000441
+  },
+  {
+   "task_id": "sem-dev-04",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-dev-04-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "kitchen/model/recipe.py::scaled"
+   ],
+   "failing_after": [],
+   "note": "Make Recipe.scaled build a separately scaled ingredient dictionary so repeated planning does not mutate or compound the original recipe.",
+   "error": null,
+   "cost_usd": 0.000201
+  },
+  {
+   "task_id": "sem-dev-05",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-dev-05-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "perfwatch/stats/summary.py::<module>",
+    "perfwatch/stats/summary.py::_nearest_rank"
+   ],
+   "failing_after": [],
+   "note": "Changed nearest-rank indexing to use ceil(pct \u00d7 n) \u2212 1 so p50 and p90 select the expected ranks.",
+   "error": null,
+   "cost_usd": 0.00026
+  },
+  {
+   "task_id": "sem-eval-03",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-03-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "agenda/intervals.py::overlaps"
+   ],
+   "failing_after": [],
+   "note": "Use strict interval bounds so back-to-back half-open intervals do not overlap.",
+   "error": null,
+   "cost_usd": 0.00019
+  },
+  {
+   "task_id": "sem-eval-04",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-04-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "textindex/analysis/tokens.py::tokenize"
+   ],
+   "failing_after": [],
+   "note": "Lowercase tokens during tokenization so word counts combine different capitalization.",
+   "error": null,
+   "cost_usd": 0.000142
+  },
+  {
+   "task_id": "sem-eval-05",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-05-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "promo/rules/discount.py::applies_to"
+   ],
+   "failing_after": [],
+   "note": "Changed discount matching from SKU prefixes to exact SKU equality, so similarly named products are not discounted.",
+   "error": null,
+   "cost_usd": 0.000182
+  },
+  {
+   "task_id": "sem-eval-06",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-06-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "flagship/env.py::parse_bool"
+   ],
+   "failing_after": [],
+   "note": "Parse documented true and false flag values explicitly so values like 'off' are disabled.",
+   "error": null,
+   "cost_usd": 0.000229
+  },
+  {
+   "task_id": "sem-eval-07",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-07-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "netmap/graph.py::add_edge"
+   ],
+   "failing_after": [],
+   "note": "Made add_edge store each endpoint as the other's neighbor, restoring undirected reachability and component counts.",
+   "error": null,
+   "cost_usd": 0.000202
+  },
+  {
+   "task_id": "sem-eval-08",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "designed_config": "dependency",
+   "run_id": "dryrun-sem-eval-08-20260926T184549",
+   "outcome": "verified",
+   "edited": [
+    "signalkit/filters/rolling.py::_window_mean"
+   ],
+   "failing_after": [],
+   "note": "Corrected the rolling mean divisor so each window is averaged over its actual size.",
+   "error": null,
+   "cost_usd": 0.000207
+  }
+ ],
+ "cost_usd": 0.005501
+}
