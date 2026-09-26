@@ -23,6 +23,7 @@ def main():
     ap.add_argument("--phase", choices=("dev", "eval"), required=True)
     ap.add_argument("--arms", nargs="+", choices=ARMS, default=list(ARMS))
     ap.add_argument("--tasks", nargs="*")
+    ap.add_argument("--repeat", type=int, default=1, help="repeat index (seeds the random arm)")
     args = ap.parse_args()
     tasks = args.tasks or sorted(p.name for p in TASKS_DIR.iterdir()
                                  if (p / "task.json").is_file() and load_task(p.name).split == args.split)
@@ -44,7 +45,7 @@ def main():
         lines = []
         try:
             doc = run_task(t, a, phase=args.phase, run_id=f"{args.phase}-{a}-{t}-{stamp}",
-                           first_attempt=shared[t], shared_run_id=shared_ids[t],
+                           first_attempt=shared[t], shared_run_id=shared_ids[t], repeat=args.repeat,
                            log=lambda m: lines.append(m))
         except Exception as e:  # a failed run is reported, never retried silently
             doc = {"run_id": f"{args.phase}-{a}-{t}-{stamp}", "task_id": t, "arm": a,

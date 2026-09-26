@@ -158,6 +158,7 @@ def _hash(files: dict) -> str:
 # ---------- the loop (SPEC §6) ----------
 
 import math  # noqa: E402
+import random  # noqa: E402
 import time as _time  # noqa: E402
 from datetime import datetime, timezone  # noqa: E402
 
@@ -170,7 +171,12 @@ from .runner import DirtyTreeError, load_task, reset_to_seed, tree_hash  # noqa:
 from .store import db, log_call  # noqa: E402
 
 BUDGET = 3
-ARMS = ("plain_retry", "fallback", "memory")
+ARMS = ("plain_retry", "fallback", "random", "memory")
+
+
+def random_seed(task_id: str, repeat: int) -> int:
+    """Seed for the `random` arm: sha256(task_id:repeat), stable across processes."""
+    return int(hashlib.sha256(f"{task_id}:{repeat}".encode()).hexdigest()[:16], 16)
 
 
 def _log_embed(run_id: str, phase: str, attempt_n: int, text: str, latency_ms: int) -> None:
@@ -181,7 +187,8 @@ def _log_embed(run_id: str, phase: str, attempt_n: int, text: str, latency_ms: i
 
 
 def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigger: str,
-                configs: dict, snapshot: str, registry: str, protocol: str) -> dict:
+                configs: dict, snapshot: str, registry: str, protocol: str,
+                repeat: int = 0) -> dict:
     """Pick the next config. Returns the decisions row (not yet written);
     row["chosen_config_id"] is None when configurations are exhausted."""
     tried = db()["attempts"].distinct("config_id", {"run_id": run_id})  # exact task history
@@ -192,6 +199,12 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
         chosen = untried[0]["config_id"] if untried else None
         row.update(retrieved=[], candidates=[{"_id": c["config_id"], "order": c["order"]} for c in untried],
                    chosen_config_id=chosen, status="selected" if chosen else "configurations_exhausted")
+    elif arm == "random":  # uniform over untried configs (registry order), seeded per (task, repeat)
+        seed = random_seed(task.task_id, repeat)
+        chosen = random.Random(seed).choice([c["config_id"] for c in untried]) if untried else None
+        row.update(retrieved=[], candidates=[{"_id": c["config_id"], "order": c["order"]} for c in untried],
+                   random_seed=seed, repeat=repeat, chosen_config_id=chosen,
+                   status="selected" if chosen else "configurations_exhausted")
     else:
         q = load_query(task)  # fixed per task (tasks/<id>/query.json); the narrator never runs here
         narrative, symbols, violations = q["narrative"], q["error_symbols"], q["narrative_violations"]
@@ -268,6 +281,7 @@ def selection_log(arm: str, family: str, stop: str | None, switch_at: int | None
                    "fusion_score": r.get("fusion_score")}
                   for i, r in enumerate((row or {}).get("retrieved") or [], 1)] or None
     return {"switch_attempt": switch_at, "triggers": triggers, "neighbours": neighbours,
+            "random_seed": (row or {}).get("random_seed"),
             "chosen_config": chosen, "designed_config": designed,
             "chosen_matches_designed": (chosen == designed) if chosen else None,
             "pre_selection_end": pre}
@@ -276,7 +290,7 @@ def selection_log(arm: str, family: str, stop: str | None, switch_at: int | None
 def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAPSHOT_ID,
              registry: str = _config.REGISTRY, protocol: str = _config.PROTOCOL,
              run_id: str | None = None, first_attempt: AttemptResult | None = None,
-             shared_run_id: str | None = None, log=print) -> dict:
+             shared_run_id: str | None = None, repeat: int = 0, log=print) -> dict:
     """One task under one arm. Returns the `runs` document.
     first_attempt: shared attempt 1 to replay (see shared_first_attempt)."""
     assert arm in ARMS and phase in ("dev", "eval")
@@ -351,7 +365,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                     break
                 row = select_next(arm, task=task, run_id=run_id, phase=phase, attempt_n=n,  # 5.
                                   trigger=trigger, configs=configs, snapshot=snapshot,
-                                  registry=registry, protocol=protocol)
+                                  registry=registry, protocol=protocol, repeat=repeat)
                 chosen, chosen_row = row["chosen_config_id"], row
                 if chosen is None:
                     db()["decisions"].insert_one({**row, "created_at": datetime.now(timezone.utc)})
@@ -372,6 +386,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
         "_id": None, "c": {"$sum": "$cost_usd"}, "i": {"$sum": "$input_tokens"},
         "o": {"$sum": "$output_tokens"}}}]), {"c": 0.0, "i": 0, "o": 0})
     doc = {"run_id": run_id, "phase": phase, "arm": arm, "task_id": task_id, "family": task.family,
+           "repeat": repeat,
            "stop_reason": stop, "verified_fix": stop == "solved", "attempts": n, "switched": switched,
            "configs_used": db()["attempts"].distinct("config_id", {"run_id": run_id}),
            "cost_usd": tot["c"] + (first_attempt.cost_usd if first_attempt else 0.0),

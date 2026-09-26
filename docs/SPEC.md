@@ -500,6 +500,7 @@ Three arms, same tasks, same model snapshot, same budget, separate workspaces:
 | `plain_retry` | No harness. Feed test output back, retry up to budget |
 | `fallback` | Full Reflex ladder, but intervention picks next config by fixed registry order |
 | `memory` | Full Reflex; intervention uses the MongoDB selection pipeline |
+| `random` | Full Reflex (same detection, reset, budget, shared attempt 1); intervention picks uniformly at random among untried configs (registry order), RNG seeded with sha256(`task_id:repeat`); seed and choice logged. Added in Gate 9 as the real baseline for "memory picks well" |
 
 `plain_retry` vs `memory` proves the harness matters. `fallback` vs `memory` proves
 MongoDB matters.
@@ -809,4 +810,5 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | ~15:15 | **Gate 8 pre-registration** (§13.4): 5 repeats per eval task per arm, attempt 1 shared within a repeat and fresh per repeat; primary metric verified rate per arm per family; semantic-score margin; retrieval semantic-only; dev smoke not evidence | Supersedes §13's "one run per task per arm": at N=2 tasks per family a single run per cell is dominated by sampling. Docs + .gitignore only; code stays `26b79a7` |
 | ~15:55 | **Gate 8 results recorded** (§13.5, `results/gate8/`, README). Docs only | Frozen `26b79a7` + mem-v1 `c701ea5e`, pre-registered `67bc540`; mem-v1 hash unchanged after the run |
 | Gate 9 P1 | **Fixed query per task**: generated once (`scripts/make_queries.py`, one narrator call per task), stored with its sha256 in `tasks/<id>/query.json`, reused for every run and repeat; decisions log `query_sha256`; the narrator never runs at eval time | Gate 8: the narrative was regenerated per run, so the same task retrieved different neighbours across repeats (both family-B misroutes). Residual noise: Automated Embedding re-embeds the query per call, scores vary by up to ~2e-4 for identical text |
+| Gate 9 P1 | **`random` arm**: identical to fallback/memory except the switch target is uniform over untried configs, seeded by sha256(`task_id:repeat`) (`controller.random_seed`); `run_suite.py --repeat N`; decisions and runs log `random_seed` and `repeat` | Gate 8's random baseline (~1/3 on family B) was analytical, not run |
 

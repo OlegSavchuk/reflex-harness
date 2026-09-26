@@ -103,3 +103,39 @@ def test_selection_log_classifies_runs_where_selection_never_acted():
                          [{"attempt_n": 3, "trigger": "same_strategy"}], None, 3)["pre_selection_end"] == "trigger_at_final_attempt"
     assert selection_log("memory", "oscillation", "budget_exhausted", None, [], None, 3)["pre_selection_end"] == "no_trigger"
     assert selection_log("plain_retry", "oscillation", "budget_exhausted", None, [], None, 3)["pre_selection_end"] == "arm_has_no_selection"
+
+
+class _Attempts:
+    def distinct(self, *a, **k):
+        return ["focused"]
+
+
+def _random_row(monkeypatch, repeat, task_id="sem-eval-01"):
+    from reflex_harness import agent, controller, narrator
+    from reflex_harness.config import CONFIGS_R1
+
+    def forbidden(*a, **k):
+        raise AssertionError("the random arm must not retrieve, narrate or call a model")
+    monkeypatch.setattr(narrator, "narrate_task", forbidden)
+    monkeypatch.setattr(agent, "call", forbidden)
+    monkeypatch.setattr(controller, "db", lambda: {"attempts": _Attempts()})  # no checkpoints access
+    return controller.select_next("random", task=load_task(task_id), run_id="r", phase="dev", attempt_n=1,
+                                  trigger="regression", configs={c["config_id"]: c for c in CONFIGS_R1},
+                                  snapshot="mem-v1", registry="r1", protocol="p1", repeat=repeat)
+
+
+def test_random_seed_is_sha256_based_and_stable():
+    import hashlib
+    from reflex_harness.controller import random_seed
+    assert random_seed("sem-eval-01", 3) == int(hashlib.sha256(b"sem-eval-01:3").hexdigest()[:16], 16)
+    assert random_seed("sem-eval-01", 3) != random_seed("sem-eval-01", 4)
+
+
+def test_random_arm_is_reproducible_uniform_over_untried_and_logged(monkeypatch):
+    from reflex_harness.controller import random_seed
+    a, b = _random_row(monkeypatch, 2), _random_row(monkeypatch, 2)
+    assert a["chosen_config_id"] == b["chosen_config_id"] and a["random_seed"] == random_seed("sem-eval-01", 2)
+    assert a["policy"] == "random" and a["repeat"] == 2 and a["retrieved"] == []
+    assert [c["_id"] for c in a["candidates"]] == ["caller", "dependency", "diagnostic"]
+    picks = {_random_row(monkeypatch, r)["chosen_config_id"] for r in range(30)}
+    assert picks <= {"caller", "dependency", "diagnostic"} and len(picks) >= 2
