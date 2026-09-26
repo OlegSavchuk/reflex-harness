@@ -1,0 +1,20 @@
+--- a/payroll/pay.py
++++ b/payroll/pay.py
+@@ -5,5 +5,5 @@
+ def net_pay(hours: float, rate_cents: int) -> int:
+     """Net weekly pay in cents: hours up to 40 at the hourly rate, hours above 40 at one and a
+     half times the rate, minus income tax on the gross."""
+-    gross = round(min(hours, 40) * rate_cents + max(hours - 40, 0) * rate_cents)
++    gross = round(min(hours, 40) * rate_cents + max(hours - 40, 0) * rate_cents * 1.5)
+     return gross - income_tax(gross)
+--- a/payroll/tax.py
++++ b/payroll/tax.py
+@@ -2,7 +2,7 @@
+ 
+ # Bands as (upper bound in cents, rate); None = no upper bound. 0% up to 500.00,
+ # 20% from 500.00 to 1,500.00, 35% above 1,500.00.
+-BANDS = [(50_000, 0.0), (150_000, 0.20), (None, 0.45)]
++BANDS = [(50_000, 0.0), (150_000, 0.20), (None, 0.35)]
+ 
+ 
+ def income_tax(gross_cents: int) -> int:

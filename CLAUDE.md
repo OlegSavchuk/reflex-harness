@@ -85,7 +85,7 @@ class Outcome(TypedDict):
 class Checkpoint(TypedDict):
     checkpoint_id: str
     snapshot_id: str          # frozen memory version, e.g. "mem-v1"
-    family: str               # "oscillation" | "semantic_repetition"
+    family: str               # "oscillation" | "semantic_repetition" | "partial_progress"
     task_id: str              # dev task that produced it (never an eval task)
     failure_narrative: str    # 2-3 sentences from the TASK (seed code, seed failing tests, verified fix
                               # diff), never the agent's edits. Structural only: no identifiers, paths,

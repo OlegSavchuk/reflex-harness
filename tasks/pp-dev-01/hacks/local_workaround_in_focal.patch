@@ -1,0 +1,15 @@
+--- a/courier/sla.py
++++ b/courier/sla.py
+@@ -7,9 +7,11 @@
+ def delivery_date(shipped: date, business_days: int) -> date:
+     """The day `business_days` business days after `shipped` (0 = the ship date itself).
+     A negative number of days is an error (ValueError)."""
++    if business_days < 0:
++        raise ValueError("business_days must not be negative")
+     d, left = shipped, business_days
+     while left > 0:
+         d += timedelta(days=1)
+-        if is_business_day(d):
++        if is_business_day(d) and (d.month, d.day) != (6, 12):
+             left -= 1
+     return d

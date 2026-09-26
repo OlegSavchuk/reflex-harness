@@ -491,8 +491,8 @@ Generating tasks with a model is fine; every task is verified by running it.
 
 Designate the demo walkthrough task **when freezing the suite**, before seeing results.
 
-**Gate 9 task set (Phase 2, 2b).** 32 active tasks: per family 6 dev + 10 eval (18 added in
-Phase 2, 7 in Phase 2b), plus one retired task. `tasks/index.json` records for every task its
+**Gate 9 task set (Phase 2, 2b, 3).** 40 active tasks: families A and B 6 dev + 10 eval each
+(18 added in Phase 2, 7 in Phase 2b), family C 4 dev + 4 eval (Phase 3), plus one retired task. `tasks/index.json` records for every task its
 family, split, domain, package, focal function, designed config, bug depth (hops from the focal
 to the function the reference fix edits) and number of callers of the focal (`n_callers`,
 checked by `validate_tasks.py` against the callers the `caller` config resolves); **splits are
@@ -505,6 +505,19 @@ different from the diagnostic fixtures. `scripts/validate_tasks.py` classifies e
 (teeth / static-only / inert / HOLE); a task is valid only with no hole and at least one hack
 that passes diagnostics and fails protected tests. Reference fixes are written by hand, never
 by running the agent loop on the task.
+
+**Family C: detection (`partial_progress`, Phase 3).** 4 dev + 4 eval tasks built so that a
+switch has to come from the same-strategy rule, not a regression. Each has two defects. Bug #1 is
+local to the focal function and contradicts its own docstring; its diagnostic test shows values,
+so the `focused` config can fix it (partial progress, nothing regresses). Bug #2 is a table or
+constant typo in a helper the focal calls (1 hop, or 2 hops inside the helper's file); its
+diagnostic test fails with a generic assertion message, so nothing in the focused view
+identifies it. Designed config: `dependency`. Every task carries `partial.patch` (bug #1 only),
+and `validate_tasks.py` checks it: failing set shrinks but stays non-empty, nothing regresses,
+edits stay inside the focal region (the state in which ladder step 9 fires). Focal callers:
+dev 1, 2, 1, 3; eval 2, 1, 3, 1. The caller-count rule matches 2 of the 4 family-C eval tasks
+(pp-eval-02, pp-eval-04); pp-eval-01 and pp-eval-03 mismatch but are not counter tasks (the
+§13.6 list is frozen).
 
 **Retired tasks.** A task marked `retired` in the index stays on disk for the record and is never
 run: `runner.load_task` refuses it (only validation opts in) and `runner.task_ids()` omits it.
@@ -718,6 +731,21 @@ top-2 neighbour checkpoint ids, whether each neighbour is a counter pattern (its
 `n_callers` in `tasks/index.json` mispredicts its `designed_config` under the rule), and the
 chosen config.
 
+
+### 13.7 Phase 3 detection dry run (pre-declared 2026-09-26, before any model call on family C)
+
+Dev tasks only (pp-dev-01..04); family-C eval tasks get no model call except their stored query.
+- **Detection runs:** `scripts/run_suite.py --split dev --phase dev --arms fallback --tasks
+  pp-dev-01..04 --repeat r` for r = 1, 2, 3: 12 runs, each with its own fresh shared attempt 1.
+  The ladder up to the first switch is identical in every switching arm; `fallback` is used
+  because its switch needs no memory. No run is repeated or replaced.
+- **Reported:** the first trigger of every run (`same_strategy`, `regression`, `exact_repeat`, or
+  none with its stop reason), per attempt: failing tests, regressions, edited functions.
+- **Pass:** `same_strategy` is the first trigger in more than half of the 12 runs. Otherwise
+  stop and report; the rule is not loosened.
+- **Solvability:** one designed-config (`dependency`) attempt from the seed per dev task
+  (`scripts/dry_run.py`), as in Phase 2.
+
 ---
 
 ## 14. Dashboard & demo
@@ -887,4 +915,5 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | 2026-09-26 | **Gate 9 plan decisions** (§13.6): frozen counter-task list (osc-eval-09, osc-eval-10, sem-eval-09, sem-eval-10); named primary comparison memory vs `caller_count` on counter tasks (N = 4); prediction that memory may not beat the rule there; per-decision neighbour report on counter tasks | Recorded before any Gate 9 eval run; enters the Phase 6 pre-registration unchanged |
 | 2026-09-26 | Atlas-internals embedding test renamed `test_atlas_internals_...` and marked Preview-dependent: skips with an explicit message if `__mdb_internal_search` is not readable, never a silent pass | Automated Embedding is a Preview feature; its internal store may change |
 | 2026-09-26 | Gate 8 lexical evidence (Phase 1 "token analysis", reported in chat, summarized at `c34392d`) made reproducible: `scripts/lexical_evidence.py` → `results/phase1/lexical_evidence.json` (read-only) | Re-run: 0 shared tokens across the 28 Gate 8 task pairs; 0 matches for each eval query (offline overlap and the real `$search` on the retained Gate 8 index `ckpt_text`); 0 of 15 Gate 8 memory decisions had any lexical overlap, so the branch could not change top-1/top-2 |
+| Gate 9 P3 | **Family C (`partial_progress`)**: 8 detection tasks (4 dev, 4 eval), designed `dependency`, `partial.patch` per task + validator check; `DESIGNED_CONFIG["partial_progress"] = "dependency"`; detection dry-run protocol and pass criterion pre-declared (§13.7) | Gate 8: every family-B switch was an attempt-1 regression, so the same-strategy rule was never tested. Validation 41/41; 16/16 new hacks have teeth; every partial fix shrinks the failing set without regressions, edits inside the focal region |
 

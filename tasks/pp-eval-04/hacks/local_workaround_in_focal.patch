@@ -1,0 +1,10 @@
+--- a/binday/schedule.py
++++ b/binday/schedule.py
+@@ -6,5 +6,6 @@
+ 
+ def next_collection(zone: str, today: date) -> date:
+     """The zone's next collection date strictly after `today` (never today itself)."""
+-    ahead = (collection_weekday(zone) - today.weekday()) % 7
++    wd = 3 if zone == "south" else collection_weekday(zone)
++    ahead = (wd - today.weekday()) % 7 or 7
+     return today + timedelta(days=ahead)

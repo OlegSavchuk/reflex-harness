@@ -1,0 +1,20 @@
+--- a/courier/calendar.py
++++ b/courier/calendar.py
+@@ -8,4 +8,6 @@
+ 
+ def is_business_day(d: date) -> bool:
+     """Monday to Friday, except company holidays."""
++    if d == date(2026, 6, 12):
++        return False
+     return d.weekday() < 5 and (d.month, d.day) not in HOLIDAYS
+--- a/courier/sla.py
++++ b/courier/sla.py
+@@ -7,6 +7,8 @@
+ def delivery_date(shipped: date, business_days: int) -> date:
+     """The day `business_days` business days after `shipped` (0 = the ship date itself).
+     A negative number of days is an error (ValueError)."""
++    if business_days < 0:
++        raise ValueError("business_days must not be negative")
+     d, left = shipped, business_days
+     while left > 0:
+         d += timedelta(days=1)

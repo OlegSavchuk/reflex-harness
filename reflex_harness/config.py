@@ -18,7 +18,7 @@ EMBED_DIMS = 1024          # voyage-4 default; the index stores scalar-quantized
 QUERY_DTYPE = "int8"      # stored query vectors must match the index quantization
 
 # The config each family is designed around (SPEC §12); logged as `designed_config` per run.
-DESIGNED_CONFIG = {"oscillation": "caller", "semantic_repetition": "dependency"}
+DESIGNED_CONFIG = {"oscillation": "caller", "semantic_repetition": "dependency", "partial_progress": "dependency"}
 
 # Registry r1: the four context configurations (SPEC §7). Seeded into `configs`.
 CONFIGS_R1 = [

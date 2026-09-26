@@ -1,0 +1,21 @@
+{
+  "task_id": "pp-dev-04",
+  "family": "partial_progress",
+  "split": "dev",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "transit/cards.py",
+    "transit/fares.py",
+    "transit/network/zones.py",
+    "transit/planner.py",
+    "transit/receipts.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

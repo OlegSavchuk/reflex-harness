@@ -6,7 +6,10 @@ only under the task's designed config (from tasks/index.json); every hack in
 tasks/<id>/hacks/*.patch is classified (teeth / static-only / inert / HOLE): no hole may
 exist, and a task with hacks needs at least one with teeth (passes diagnostics, fails
 protected tests). Gate 9 tasks must have hacks; the index's n_callers must equal the callers
-the `caller` config resolves. Across tasks: packages unique; index consistent with task.json.
+the `caller` config resolves. Family C (partial_progress) tasks carry `partial.patch` (bug #1
+only): it must shrink the failing set without emptying it, regress nothing, and edit only
+inside the focal region (the state in which the same-strategy rule is meant to fire). Across
+tasks: packages unique; index consistent with task.json.
 Retired tasks are validated for the record but never counted or run.
 
 Usage: python scripts/validate_tasks.py [task_id ...] [--load]
@@ -21,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from reflex_harness.config import CONFIGS_R1  # noqa: E402
-from reflex_harness.context import build_context, pin_focal  # noqa: E402
+from reflex_harness.context import build_context, edited_functions, focal_region, pin_focal  # noqa: E402
 from reflex_harness.runner import TASKS_DIR, LocalRunner, load_task  # noqa: E402
 
 TIMEOUT_S = 60
@@ -109,6 +112,25 @@ def validate(runner, task_id, index):
                   (entry["family"], entry["split"]) == (task.family, task.split)
                   and entry["focal"] == f"{manifest['path']}::{manifest['function']}",
                   "missing from tasks/index.json" if entry is None else "")
+        partial = task.root / "partial.patch"
+        if task.family == "partial_progress" or partial.is_file():
+            check("has partial.patch (bug #1 only)", partial.is_file())
+        if partial.is_file():
+            pw = runner.prepare(task)
+            try:
+                before = {p: (pw.path / p).read_text() for p in task.allowlist}
+                apply_patch_file(pw.path, partial)
+                after = {p: (pw.path / p).read_text() for p in task.allowlist}
+                pr = runner.run(pw, task.diag_cmd, TIMEOUT_S)
+            finally:
+                runner.cleanup(pw)
+            region = focal_region(seed, pinned, base)
+            edited = edited_functions(before, after)
+            check("partial fix: failing set shrinks but stays non-empty, nothing regresses, edits inside the focal region",
+                  pr.failed and set(pr.failed) < set(base.failed) and set(base.passed) <= set(pr.passed)
+                  and edited and all(region.inside(e) for e in edited),
+                  f"failing {[n.split('::')[-1] for n in base.failed]} -> {[n.split('::')[-1] for n in pr.failed]}; "
+                  f"edited {[e.split('::')[-1] for e in edited]}")
         hack_dir = task.root / "hacks"
         hacks = sorted(hack_dir.glob("*.patch")) if hack_dir.is_dir() else []
         if (entry or {}).get("added_in", "").startswith("gate9"):

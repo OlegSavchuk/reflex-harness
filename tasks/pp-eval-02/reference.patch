@@ -1,0 +1,19 @@
+--- a/greenhouse/care/water.py
++++ b/greenhouse/care/water.py
+@@ -8,7 +8,7 @@
+     """1.0 below 25 C, 1.5 from 25 C up to 32 C, 2.0 at 32 C and above."""
+     if temp_c >= 32:
+         return 2.0
+-    if temp_c >= 28:
++    if temp_c >= 25:
+         return 1.5
+     return 1.0
+ 
+--- a/greenhouse/schedule.py
++++ b/greenhouse/schedule.py
+@@ -8,4 +8,4 @@
+     """Litres to set aside for `days` days: each plant type's daily water times its count,
+     summed over types and days, in whole litres rounded up."""
+     total_ml = sum(daily_water_ml(p, temp_c) * n for p, n in plants.items()) * days
+-    return round(total_ml / 1000)
++    return math.ceil(total_ml / 1000)

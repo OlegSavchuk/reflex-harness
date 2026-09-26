@@ -1,0 +1,19 @@
+--- a/binday/schedule.py
++++ b/binday/schedule.py
+@@ -6,5 +6,5 @@
+ 
+ def next_collection(zone: str, today: date) -> date:
+     """The zone's next collection date strictly after `today` (never today itself)."""
+-    ahead = (collection_weekday(zone) - today.weekday()) % 7
++    ahead = (collection_weekday(zone) - today.weekday()) % 7 or 7
+     return today + timedelta(days=ahead)
+--- a/binday/zones.py
++++ b/binday/zones.py
+@@ -1,6 +1,6 @@
+ """Collection zones. North collects on Monday, East on Tuesday, South on Thursday, West on Friday."""
+ 
+-ZONE_DAY = {"north": 0, "east": 1, "south": 4, "west": 4}   # weekday numbers, Monday = 0
++ZONE_DAY = {"north": 0, "east": 1, "south": 3, "west": 4}   # weekday numbers, Monday = 0
+ 
+ 
+ def collection_weekday(zone: str) -> int:

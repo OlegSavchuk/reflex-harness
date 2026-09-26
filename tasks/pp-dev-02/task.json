@@ -1,0 +1,20 @@
+{
+  "task_id": "pp-dev-02",
+  "family": "partial_progress",
+  "split": "dev",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "payroll/pay.py",
+    "payroll/payslip.py",
+    "payroll/tax.py",
+    "payroll/team.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

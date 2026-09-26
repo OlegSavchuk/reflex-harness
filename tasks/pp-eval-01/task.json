@@ -1,0 +1,20 @@
+{
+  "task_id": "pp-eval-01",
+  "family": "partial_progress",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "airline/allowance.py",
+    "airline/booking.py",
+    "airline/checkin.py",
+    "airline/fees.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

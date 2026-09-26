@@ -1,0 +1,19 @@
+{
+  "task_id": "pp-eval-04",
+  "family": "partial_progress",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "binday/reminders.py",
+    "binday/schedule.py",
+    "binday/zones.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

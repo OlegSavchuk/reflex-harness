@@ -1,0 +1,20 @@
+--- a/airline/allowance.py
++++ b/airline/allowance.py
+@@ -2,7 +2,7 @@
+ Weight allowance per bag: economy 20 kg, premium 25 kg, business 35 kg."""
+ 
+ FREE_BAGS = {"economy": 1, "premium": 2, "business": 2}
+-WEIGHT_KG = {"economy": 20, "premium": 25, "business": 25}
++WEIGHT_KG = {"economy": 20, "premium": 25, "business": 35}
+ 
+ 
+ def free_bags(cabin: str) -> int:
+--- a/airline/fees.py
++++ b/airline/fees.py
+@@ -6,5 +6,5 @@
+     """Fee in cents: 6000 for each bag beyond the cabin's free bags, plus 7500 for each bag
+     heavier than the cabin's weight allowance (a bag exactly at the allowance is fine)."""
+     extra = max(len(bag_weights_kg) - free_bags(cabin), 0) * 6000
+-    heavy = sum(7500 for w in bag_weights_kg if w >= weight_allowance(cabin))
++    heavy = sum(7500 for w in bag_weights_kg if w > weight_allowance(cabin))
+     return extra + heavy

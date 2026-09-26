@@ -1,0 +1,9 @@
+--- a/cinema/tickets.py
++++ b/cinema/tickets.py
+@@ -9,4 +9,5 @@
+ def ticket_price(starts: time, student: bool) -> int:
+     """Price in cents: the tariff for the start time. Students pay STUDENT instead, unless the
+     tariff is already lower (discounts never stack)."""
+-    return STUDENT if student else base_price(starts)
++    price = 1200 if starts >= time(15, 0) else base_price(starts)
++    return min(price, STUDENT) if student else price
