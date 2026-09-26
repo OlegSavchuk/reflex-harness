@@ -71,6 +71,22 @@ next configuration in a fixed order), `memory` (Reflex, MongoDB-selected configu
   diagnostics alone, plain retry would score about 9/10 on family A; under our standard it
   scores 0/10.
 
+### Token usage (secondary, computed after the run)
+
+Not pre-registered; computed afterwards from the recorded model calls
+([`results/gate8/tokens.txt`](results/gate8/tokens.txt)). Attempt 1 counts in every arm.
+
+| Arm | Verified fixes | Tokens spent | Tokens per attempt | Tokens per verified fix |
+|---|---|---|---|---|
+| memory | 13/20 | 105,787 | 2.7k | **8,137** |
+| fallback | 4/20 | 98,774 | 2.6k | 24,694 |
+| plain_retry | 0/20 | 149,079 | 3.0k | none fixed |
+
+Tokens per attempt are similar across arms; the difference per fix comes from how many runs end
+in a verified fix. The wider contexts do not cost more per attempt: `dependency` attempts read
+more code (1,036 vs 494 input tokens on average for `focused`) but write far less (328 vs 2,434
+output tokens, mostly reasoning). Same small sample as above (2 tasks per family).
+
 ### What these results do not show
 
 - **Repeated-strategy detection is untested at eval.** Every family-B switch was triggered by
@@ -113,15 +129,39 @@ recorded in MongoDB.
 Gate 8 stays frozen as the baseline. Gate 9 tests whether its findings hold on more tasks, with
 less retrieval noise, a real random baseline, and a test of detection rather than only selection.
 
+**Status: in progress, results not yet available.** 40 active tasks across 3 families
+(A: oscillation 16, B: semantic repetition 16, C: detection 8; 24 held out for eval), 5 arms
+(plain retry, fallback, random, memory, and a caller-count rule as the structural baseline), and
+4 counter tasks, where the caller-count rule picks the wrong configuration, pre-declared as the
+named comparison between memory and that rule.
+
 - **Phase 0 — Housekeeping:** chart reproducible from the report; result files never silently ignored.
 - **Phase 1 — Harness fixes:** one fixed query per task, a real random-selection arm, per-run retrieval diagnostics, semantic-only retrieval (lexical branch removed).
 - **Phase 2 — More tasks:** 6 dev + 10 eval tasks per family, varied domains and layouts, protected tests that block every known hack; caller count no longer predicts the right configuration (a caller-count rule is added as a baseline arm).
 - **Phase 3 — Detection test:** tasks where attempt 1 makes partial progress without regressing, so switches must come from the same-strategy rule.
-- **Phase 4 — Open-choice tasks:** no configuration designed to win; the best one is measured after the fact.
+- **Phase 4 — Open-choice tasks (deferred):** no configuration designed to win; the best one is measured after the fact.
 - **Phase 5 — mem-v2:** memory rebuilt from all dev tasks; leave-one-out retrieval report.
-- **Phase 6 — Pre-registration:** arms (plain retry, fallback, random, memory), predictions and task-level bootstrap CIs written and frozen before any eval run.
+- **Phase 6 — Pre-registration:** arms (plain retry, fallback, random, memory, caller-count rule), predictions and task-level bootstrap CIs written and frozen before any eval run.
 - **Phase 7 — Gate 9 run:** exactly the pre-registered design; results in `results/gate9/`.
 - **Phase 8 — Growing memory (exploratory, not part of Gate 9):** add each verified fix as a checkpoint and track verified rate and cost against tasks seen.
+
+## Run the demo
+
+One task, two arms, one line per event (attempt, trigger, MongoDB memory lookup, reset, switch,
+final visible / hidden / static verdict, cost and tokens). Needs `.env` (MONGODB_URI,
+OPENROUTER_API_KEY, CODING_MODEL) and the mem-v1 snapshot in Atlas (see Reproduce).
+
+```bash
+source .venv/bin/activate
+python -m reflex_harness run --task sem-eval-01 --arm plain_retry --phase demo --pretty --save-dir runs/demo
+python -m reflex_harness run --task sem-eval-01 --arm memory --phase demo --pretty --save-dir runs/demo
+```
+
+`--phase demo` tags every stored row `phase: demo` (run ids `demo-...`), so demo runs never mix
+with dev or eval data; `--save-dir` writes each run's record and transcript to `runs/demo/`
+(gitignored). Colour in a terminal; `NO_COLOR=1` turns it off, `FORCE_COLOR=1` keeps it when
+piping. The model is re-sampled on every run, so the path differs between runs. Each run costs
+under $0.01.
 
 ## Reproduce
 
