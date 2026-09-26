@@ -21,6 +21,7 @@ workspaces/
 *.log
 
 # OS / editor
+.playwright-mcp/
 .DS_Store
 .idea/
 .vscode/
