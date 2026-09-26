@@ -25,3 +25,20 @@ def test_printed_rounding():
 
 def test_pages_actual_size():
     assert pages_needed(3000, 2000, 100, (1000, 1000)) == 6
+
+
+def test_scale_rejects_percentages():
+    import pytest
+    with pytest.raises(ValueError):
+        scale(10, 10, 150)
+
+
+def printed_size_probe():
+    return scale(100, 100, 2)
+
+
+printed_size_probe.__code__ = printed_size_probe.__code__.replace(co_name="printed_size")
+
+
+def test_scale_does_not_depend_on_caller():
+    assert printed_size_probe() == (200, 200)

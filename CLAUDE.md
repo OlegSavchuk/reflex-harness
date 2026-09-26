@@ -81,6 +81,8 @@ class Checkpoint(TypedDict):
     compat: dict              # {"language": "python", "protocol": "p1", "registry": "r1"}
     prior_attempts: list      # identical attempt summaries shown to all four trials
     outcomes: list[Outcome]   # exactly one per config, both successes and failures
+    narrative_violations: list # validator violations left after the narrator's one retry ([] = valid)
+    build_cost_usd: float     # narrator + four trials
     created_at: datetime
 ```
 Example (truncated):
@@ -109,7 +111,7 @@ instead of `queryVector`. Fallback if it fails: manual Voyage embeddings + `quer
 class Attempt(TypedDict):
     run_id: str
     phase: str                # "dev" | "eval"
-    mode: str                 # "memory" | "fallback" | "plain_retry"
+    mode: str                 # "memory" | "fallback" | "plain_retry" | "build" (memory building)
     task_id: str
     attempt_n: int            # 1-based
     config_id: str
@@ -124,8 +126,11 @@ class Attempt(TypedDict):
     diag_pass: bool
     regression: bool
     rolled_back: bool         # controller restored parent state
-    trigger: str | None       # None | "regression" | "exact_repeat" | "jev"
-    jev_p_repeating: float | None
+    trigger: str | None       # None | "regression" | "exact_repeat" | "same_strategy"
+    jev_p_repeating: float | None  # None: Jev replaced by the same_strategy rule at Gate 5 (SPEC §10)
+    verified: bool            # protected tests passed (only meaningful when diag_pass)
+    cost_usd: float           # model cost of this attempt (both calls for diagnostic)
+    error: str | None         # unparseable reply / rejected patch / infra
     created_at: datetime
 ```
 Indexes: `{run_id: 1, attempt_n: 1}`, `{task_id: 1, phase: 1}`.
@@ -136,7 +141,15 @@ Indexes: `{run_id: 1, attempt_n: 1}`, `{task_id: 1, phase: 1}`.
 `retrieved` (list of `{checkpoint_id, fusion_score}`), `candidates` (the full sorted
 table the selection pipeline returns: per-config support/solves/regressions/mean_cost/score),
 `chosen_config_id` (row 0),
-`status` ("selected" | "insufficient_evidence" | "configurations_exhausted"), `created_at`.
+`status` ("selected" | "insufficient_evidence" | "configurations_exhausted"), `policy`
+("memory" | "fallback"), and for memory: `narrative`, `narrative_violations`, `error_symbols`;
+`retrieved` entries also carry `family` and `failure_narrative` for the dashboard. `created_at`.
+
+### Collection: `runs` — one row per task × arm run
+
+`run_id`, `phase`, `arm`, `task_id`, `family`, `stop_reason` (SPEC §6.2), `verified_fix`
+(stop_reason == "solved"), `attempts`, `switched`, `configs_used`, `cost_usd` (sum of the run's
+`calls` rows), `snapshot_id` (memory arm), `created_at`.
 
 ### Collection: `calls` — cost ledger, one row per external call
 

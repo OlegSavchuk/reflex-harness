@@ -115,11 +115,22 @@ After every attempt:
 5. If a trigger fired → **intervene**.
 6. **Exact repeat?** Same state hash as an earlier attempt, or same patch fingerprint
    against the same parent state → trigger = `exact_repeat` → intervene (skip Jev).
-7. **Strict-subset progress?** Failing set is a strict subset of previous failing set, same
-   suite, no missing/skipped tests → continue. (3 failures → 2 *different* failures is NOT progress.)
+7. **Progress that moved?** Failing set is a strict subset of the previous failing set (same
+   suite, no missing/skipped tests) **and** the patch edited a function the previous attempt
+   did not edit → continue without asking Jev. Real progress usually moves.
+   Shrinkage alone no longer short-circuits: a local hack in the same function can shrink the
+   failing set (sem-dev-02: quarter-hour rounding took 3 failures to 1) while repeating the
+   same strategy. That case goes to Jev with `shrank: true` in the packet.
+   (3 failures → 2 *different* failures is not shrinkage.)
 8. **Too early for Jev?** Already switched, or fewer than 2 completed attempts under the
    current config → continue.
-9. **Ask Jev.** `p(repeating) >= THETA` → trigger = `jev` → intervene. Else continue.
+9. **Same-strategy check (rule; replaced Jev at Gate 5).** Same focal function edited on
+   consecutive attempts, no change in which functions are edited, failures not reduced to
+   zero → trigger = `same_strategy` → intervene. Else continue.
+   (`controller.same_strategy`.) Jev was the plan here — packet with `failing_before`,
+   `failing_after`, `shrank` — but it could not separate same-function shrinking hacks from
+   genuine refinements (Gate 5, §10). Disclosed. A false positive costs one early switch to a
+   config that still includes the focal, never lost context.
 
 Controller-generated rollbacks are recorded separately and must never count as agent
 oscillation. Log which trigger fired: "rules caught it" vs "Jev caught it" is evidence for
@@ -319,7 +330,14 @@ Notes:
 
 ---
 
-## 10. Jev integration (`jev.py`)
+## 10. Jev integration (`jev.py`) — planned; replaced by a rule at Gate 5
+
+> **Gate 5 result (disclosed).** 10 dev cases (5 repeats incl. 2 same-function shrinking hacks;
+> 5 non-repeats incl. 3 same-function refinements), 3 phrasings, 2 samples each. Hard-boundary
+> gap (shrinking hacks vs refinements): p1 −0.03, p2 −0.23, p3 −0.36. p1 met the count gate
+> (9/10 at THETA 0.15) only with THETA inside Jev's sampling noise and missed one shrinking
+> hack (p=0.10). Control flow uses the §6.1 step-9 rule instead (9/10, 0 refinements flagged,
+> deterministic). `jev.py` and `scripts/jev_smoke.py` stay as the evidence.
 
 ```python
 POST https://openrouter.ai/api/alpha/decisions
@@ -342,7 +360,8 @@ POST https://openrouter.ai/api/alpha/decisions
   `failure_shape` is dashboard display only.
 - **Packet:** goal; current config; last 2 attempts under this config (functions edited,
   diff excerpt ≤60 lines, tests before/after); context examined; budget remaining; plus one
-  older attempt if its fingerprint resembles the latest. Jev context is 32k tokens.
+  older attempt if its fingerprint resembles the latest; `failing_before`, `failing_after`,
+  `shrank` for the latest attempt (§6.1 step 9). Jev context is 32k tokens.
 - **THETA:** chosen on 10 dev smoke cases (mix of repeats and legitimate refinements), then
   frozen. Gate: ≥8/10 correct, ≤1 refinement falsely flagged. Report as "passed smoke test",
   never as accuracy.
@@ -524,7 +543,7 @@ submission. No new features in that window.
 |---|---|
 | `autoEmbed` fails or is blocked by sandbox policy | Ask MongoDB staff immediately; fallback to manual Voyage + `queryVector`; disclose |
 | `$vectorSearch` won't run inside `$rankFusion` | Run branches separately, fuse with RRF in Python; disclose |
-| Jev fails smoke gate | Rules-only; Jev shown as future work |
+| Jev fails smoke gate | Rules-only; Jev shown as future work. **Taken at Gate 5** (§10) |
 | Model solves everything under `focused` | Weaker model; re-calibrate |
 | Model fails even with right context | Stronger model (`google/gemini-3.8-flash-20260902`) |
 | One config wins everywhere | Report it; don't manufacture an adaptive benefit |
@@ -564,3 +583,20 @@ Cloud runner: Daytona behind the `Runner` protocol.
 - **Support**: number of retrieved checkpoints with an observed outcome for a config.
 - **Verified fix**: diagnostics pass AND protected tests pass.
 - **THETA**: frozen Jev probability threshold for "repeating".
+
+---
+
+## 21. Changelog (changes after the plan freeze; all decided on dev evidence, before any eval run)
+
+| When (Sept 26, ET) | Change | Reason |
+|---|---|---|
+| ~11:15 | Selection: a solve = `solved AND verified`; outcomes record both | A diagnostics-only fix (e.g. truncation instead of rounding) would teach memory the wrong lesson |
+| ~11:15 | Selection pipeline returns the full sorted candidate table (no final `$limit`) | `decisions.candidates` and the dashboard need it |
+| ~11:15 | Narrator: structural pattern only, no identifiers/paths/domain nouns/test names; validator + one retry | Gate 1: retrieval clustered by domain, not failure pattern; dev and eval domains differ |
+| ~11:15 | Focal chain: traceback → `context_manifest.json`; `focal_source` recorded | Assertion-only failures have no source frame |
+| ~11:15 | `focused`/`diagnostic` see a filtered traceback; `caller`/`dependency` see it in full | Caller frames leaked into `focused`, making configs not really different |
+| ~11:15 | Diagnostic check script runs from a scratch dir against a throwaway copy | Arbitrary code must not bypass the allowlist or enter the patch |
+| ~11:45 | Focal pinned once per task from the seed baseline; `re-resolved` if it disappears | Per-attempt focal drifted to downstream victims (`apply_tax` → `format_cents`) |
+| ~12:00 | Ladder step 7: shrinkage continues only if the patch moved to a new function; otherwise it goes to Jev with `shrank: true` | sem-dev-02 calibration: a same-function rounding hack shrank failures 3 → 1, so the old step 7 skipped Jev on exactly the family that separates memory from fallback |
+| ~12:20 | Ladder step 9: rule-based same-strategy detector replaces Jev; trigger `same_strategy` | Gate 5: Jev's hard-boundary gap was negative for all 3 phrasings (p1 −0.03, within sampling noise); rule scored 9/10 with 0 refinements flagged on the same cases |
+

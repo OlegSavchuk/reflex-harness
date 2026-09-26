@@ -29,3 +29,7 @@ def log_call(*, run_id: str, phase: str, attempt_n: int, component: str, model: 
         "model": model, "input_tokens": input_tokens, "output_tokens": output_tokens,
         "cost_usd": cost_usd, "latency_ms": latency_ms, **extra,
         "created_at": datetime.now(timezone.utc)})
+
+
+def insert_attempt(row: dict) -> None:
+    db()["attempts"].insert_one({**row, "created_at": datetime.now(timezone.utc)})

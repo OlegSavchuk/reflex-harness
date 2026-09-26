@@ -139,3 +139,12 @@ def test_pinned_focal_survives_drift_and_re_resolves_when_gone(seed, pinned):
         assert (ctx.focal.name, ctx.focal_source) == ("format_cents", "re-resolved")
     finally:
         runner.cleanup(drifted)
+
+
+def test_edited_functions():
+    from reflex_harness.context import edited_functions
+    before = {"m.py": "import os\n\ndef f():\n    return 1\n\ndef g():\n    return 2\n"}
+    after = {"m.py": "import os\n\ndef f():\n    return 1\n\ndef g():\n    return 3\n"}
+    assert edited_functions(before, after) == ["m.py::g"]
+    assert edited_functions(before, before) == []
+    assert "m.py::<module>" in edited_functions(before, {"m.py": "import sys\n" + before["m.py"][10:]})

@@ -25,3 +25,20 @@ def test_geojson_southern_hemisphere():
 
 def test_geojson_iberia():
     assert linestring_length_km(line((-3.7038, 40.4168), (-9.1393, 38.7223))) == 502.4
+
+
+def test_distance_rejects_out_of_range_latitude():
+    import pytest
+    with pytest.raises(ValueError):
+        haversine_km((120.0, 10.0), (0.0, 0.0))
+
+
+def linestring_length_km_probe():
+    return haversine_km((10.0, 20.0), (10.0, 21.0))
+
+
+linestring_length_km_probe.__code__ = linestring_length_km_probe.__code__.replace(co_name="linestring_length_km")
+
+
+def test_distance_does_not_depend_on_caller():
+    assert round(linestring_length_km_probe(), 1) == 109.5

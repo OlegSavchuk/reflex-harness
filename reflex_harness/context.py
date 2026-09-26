@@ -295,3 +295,33 @@ def render(ctx: Context, goal: str, prior_attempts: list[str], step: str = "patc
     sec.append("Write the check script now." if step == "check" else "Write the fix now.")
     system = SYSTEM_CHECK if step == "check" else SYSTEM_PATCH
     return [{"role": "system", "content": system}, {"role": "user", "content": "\n\n".join(sec)}]
+
+
+# ---------- what an attempt changed (ladder step 7, Jev packet) ----------
+
+def _def_sources(text: str, path: str) -> dict[str, str]:
+    """{"path::name": source} for every function/class; "<module>" holds the rest."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return {f"{path}::<unparseable>": text}
+    out, lines = {}, text.splitlines()
+    covered = set()
+    for n in _defs(tree):
+        if isinstance(n, ast.ClassDef):
+            continue
+        out[f"{path}::{n.name}"] = "\n".join(lines[n.lineno - 1:n.end_lineno])
+        covered.update(range(n.lineno, n.end_lineno + 1))
+    out[f"{path}::<module>"] = "\n".join(l for i, l in enumerate(lines, 1) if i not in covered)
+    return out
+
+
+def edited_functions(before: dict[str, str], after: dict[str, str]) -> list[str]:
+    """Functions whose source differs between two file snapshots ("path::name")."""
+    changed = set()
+    for path in set(before) | set(after):
+        if before.get(path) == after.get(path):
+            continue
+        b, a = _def_sources(before.get(path, ""), path), _def_sources(after.get(path, ""), path)
+        changed |= {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
+    return sorted(changed)

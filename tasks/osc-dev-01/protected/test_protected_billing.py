@@ -41,3 +41,31 @@ def test_refund_summary_mixed():
     items = [LineItem("x", 1, 0.10), LineItem("y", 2, 0.20)]
     assert refund_summary("ORD-8", items, 0.10) == {"order_id": "ORD-8", "lines": 2,
                                                     "refund_dollars": 0.55}
+
+
+def test_invoice_small_cent_amount():
+    total = invoice_total_cents([LineItem("gum", 1, 99)], 0.0825)
+    assert total == 107
+    assert isinstance(total, int)
+
+
+def test_refund_large_integer_dollar_amount():
+    assert refund_total_dollars([LineItem("sofa", 2, 750)], 0.0825) == 1623.75
+
+
+def test_apply_tax_contract_unchanged():
+    import pytest
+    with pytest.raises(TypeError):
+        apply_tax(24.98, 0.0825)
+
+
+def refund_total_dollars_probe():
+    return apply_tax(1200, 0.0825)
+
+
+refund_total_dollars_probe.__code__ = refund_total_dollars_probe.__code__.replace(co_name="refund_total_dollars")
+
+
+def test_apply_tax_does_not_depend_on_caller():
+    result = refund_total_dollars_probe()
+    assert result == 1299 and isinstance(result, int)

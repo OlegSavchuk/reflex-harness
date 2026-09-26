@@ -6,6 +6,7 @@ domains, so a narrative that says "refund" or "invoice" hurts cross-domain retri
 The narrator call (Gate 6) runs validate_narrative and retries once with the violations.
 """
 import ast
+import json
 import re
 from pathlib import Path, PurePosixPath
 
@@ -47,3 +48,53 @@ def validate_narrative(text: str, forbidden: set[str]) -> list[str]:
         if hit:
             violations.append(f"task term: {word!r}")
     return sorted(set(violations))
+
+
+NARRATOR_SYSTEM = (
+    "You describe how a coding agent's repair attempts failed, as a reusable pattern for "
+    "retrieving similar failures in unrelated codebases. Write 2-3 sentences of plain prose "
+    "describing the structural pattern only: what kind of code the agent changed (for example a "
+    "helper shared by several callers, or local arithmetic inside one function), what happened "
+    "to the tests (for example fixing one group broke another and the agent reverted, the same "
+    "tests kept failing, or failures shrank without clearing), and whether the edits stayed in "
+    "one place. Do not include identifiers, file, module or package names, paths, test names, "
+    "exception names, literal values, or any noun about what the software does. "
+    'Reply with JSON only: {"narrative": "<2-3 sentences>"}.'
+)
+
+
+def error_symbols(views: list[dict], focal_name: str, reports) -> str:
+    """Lexical field: failing test names, exception types, focal and edited function names."""
+    syms = [focal_name]
+    for v in views:
+        syms += v["failing_before"] + v["failing_after"]
+        syms += [f.split("::")[-1] for f in v["functions_edited"] if not f.endswith("<module>")]
+    for rep in reports:
+        for t in rep.raw.get("tests", []):
+            for stage in ("setup", "call", "teardown"):
+                msg = (t.get(stage) or {}).get("crash", {}).get("message", "")
+                m = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b", msg)
+                if m:
+                    syms.append(m.group(1))
+    return " ".join(dict.fromkeys(s for s in syms if s))
+
+
+def narrate(views: list[dict], forbidden: set[str], *, run_id: str, phase: str,
+            attempt_n: int) -> tuple[str, list[str], float]:
+    """(narrative, remaining violations, cost). Validated; one retry with the violations."""
+    from . import agent
+    user = "ATTEMPTS\n" + json.dumps(views, indent=1)
+    msgs = [{"role": "system", "content": NARRATOR_SYSTEM}, {"role": "user", "content": user}]
+    cost, text, violations = 0.0, "", ["no narrative"]
+    for _ in range(2):
+        r = agent.call(msgs, run_id=run_id, phase=phase, attempt_n=attempt_n, step="narrative",
+                       component="narrator")
+        cost += r.cost_usd
+        text = ((r.data or {}).get("narrative") or "").strip()
+        violations = validate_narrative(text, forbidden) if text else [f"no narrative: {r.error}"]
+        if not violations:
+            break
+        msgs = msgs + [{"role": "assistant", "content": json.dumps({"narrative": text})},
+                       {"role": "user", "content": "Rejected for: " + "; ".join(violations)
+                        + ". Rewrite without them."}]
+    return text, violations, cost

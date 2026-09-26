@@ -22,3 +22,20 @@ def test_job_float_not_truncated():
 
 def test_batch_mixed():
     assert batch_deadline([Job("x", 10), Job("y", 0.5)], 1) == 10001
+
+
+def test_clock_rejects_non_int():
+    import pytest
+    with pytest.raises(TypeError):
+        deadline_after(0, 1.5)
+
+
+def job_deadline_probe():
+    return deadline_after(0, 2)
+
+
+job_deadline_probe.__code__ = job_deadline_probe.__code__.replace(co_name="job_deadline")
+
+
+def test_clock_does_not_depend_on_caller():
+    assert job_deadline_probe() == 2

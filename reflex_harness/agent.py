@@ -28,6 +28,9 @@ SCHEMAS = {
     "check": {"name": "check_script", "strict": True, "schema": {
         "type": "object", "additionalProperties": False, "required": ["script", "note"],
         "properties": {"script": {"type": "string"}, "note": {"type": "string"}}}},
+    "narrative": {"name": "narrative", "strict": True, "schema": {
+        "type": "object", "additionalProperties": False, "required": ["narrative"],
+        "properties": {"narrative": {"type": "string"}}}},
 }
 
 
@@ -56,7 +59,7 @@ def parse_json(text: str) -> dict | None:
 
 
 def call(messages: list[dict], *, run_id: str, phase: str, attempt_n: int,
-         step: str = "patch", model: str | None = None) -> AgentReply:
+         step: str = "patch", component: str = "agent", model: str | None = None) -> AgentReply:
     model = model or os.environ["CODING_MODEL"]
     body = {"model": model, "messages": messages, "temperature": 0, "max_tokens": MAX_TOKENS,
             "usage": {"include": True},
@@ -81,7 +84,7 @@ def call(messages: list[dict], *, run_id: str, phase: str, attempt_n: int,
     reply = AgentReply(data=data, model=model, model_reported=j.get("model"), input_tokens=in_tok,
                        output_tokens=out_tok, cost_usd=prices.cost(model, in_tok, out_tok),
                        latency_ms=latency_ms, error=error)
-    log_call(run_id=run_id, phase=phase, attempt_n=attempt_n, component="agent", model=model,
+    log_call(run_id=run_id, phase=phase, attempt_n=attempt_n, component=component, model=model,
              input_tokens=in_tok, output_tokens=out_tok, cost_usd=reply.cost_usd,
              latency_ms=latency_ms, model_reported=reply.model_reported, step=step,
              usage_cost=usage.get("cost"),
