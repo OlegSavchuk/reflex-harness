@@ -130,10 +130,11 @@ python3 -m venv .venv && source .venv/bin/activate && pip install -r requirement
 cp .env.example .env            # fill in MONGODB_URI, OPENROUTER_API_KEY, CODING_MODEL
 python scripts/smoke_test.py    # connectivity: Atlas, coding model, Jev, Voyage
 python scripts/create_indexes.py --wait && python scripts/seed_configs.py
-python scripts/validate_tasks.py          # 8 tasks: seed fails, reference passes
+python scripts/validate_tasks.py          # every task: seed fails, reference passes, hacks caught
 python scripts/build_memory.py            # dev memory (mem-v1)
 python scripts/run_suite.py --split eval --phase eval   # one repeat of Gate 8
 python -m reflex_harness run --task sem-dev-01 --arm memory --phase dev    # single run (dev task)
+python -m reflex_harness run --task sem-eval-01 --arm memory --phase demo --pretty --save-dir runs/demo   # demo output
 ```
 
 Requires Python 3.10+, `git`, and a MongoDB Atlas cluster (8.0+) with Automated Embedding.

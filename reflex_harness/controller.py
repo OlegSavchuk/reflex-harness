@@ -157,7 +157,9 @@ def _hash(files: dict) -> str:
 
 # ---------- the loop (SPEC §6) ----------
 
+import copy  # noqa: E402
 import random  # noqa: E402
+import sys  # noqa: E402
 import time as _time  # noqa: E402
 from datetime import datetime, timezone  # noqa: E402
 
@@ -287,10 +289,22 @@ def selection_log(arm: str, family: str, stop: str | None, switch_at: int | None
 def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAPSHOT_ID,
              registry: str = _config.REGISTRY, protocol: str = _config.PROTOCOL,
              run_id: str | None = None, first_attempt: AttemptResult | None = None,
-             shared_run_id: str | None = None, repeat: int = 0, log=print) -> dict:
+             shared_run_id: str | None = None, repeat: int = 0, log=print, events=None) -> dict:
     """One task under one arm. Returns the `runs` document.
-    first_attempt: shared attempt 1 to replay (see shared_first_attempt)."""
-    assert arm in ARMS and phase in ("dev", "eval")
+    first_attempt: shared attempt 1 to replay (see shared_first_attempt).
+    events: optional presentation hook (`--pretty`), called as events(kind, **data) at each
+    ladder step: start, attempt, trigger, selection, reset, switch, final. It only observes:
+    it gets copies, its return value is ignored and its errors are swallowed, so the run is
+    identical with or without it. phase "demo" keeps demo runs out of dev/eval data."""
+    assert arm in ARMS and phase in ("dev", "eval", "demo")
+
+    def emit(kind: str, **data) -> None:
+        if events is None:
+            return
+        try:
+            events(kind, **copy.deepcopy(data))
+        except Exception as e:  # presentation must never affect a run
+            print(f"[events] {kind}: {type(e).__name__}: {e}", file=sys.stderr)
     task = load_task(task_id)
     runner = LocalRunner()
     run_id = run_id or f"{phase}-{arm}-{task_id}-{_time.strftime('%Y%m%dT%H%M%S', _time.gmtime())}"
@@ -298,10 +312,13 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
     ws = runner.prepare(task)
     stop, switched, in_cfg, n, reset_note, dirty = None, False, 0, 0, False, None
     switch_at, chosen_row, triggers = None, None, []
+    last, final_verify = None, None
     try:
         base = cur = runner.run(ws, task.diag_cmd, TEST_TIMEOUT_S)
         pinned = pin_focal(ws, cur)
         region = focal_region(ws, pinned, base)
+        emit("start", task_id=task_id, arm=arm, phase=phase, run_id=run_id, budget=BUDGET,
+             family=task.family, visible_passed=len(base.passed), visible_total=_n_tests(base))
         cfg = configs["focused"]
         prior, cfg_history = [], []
         seen_states, seen_fps = set(), set()
@@ -311,6 +328,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                             attempt_n=n, verify=False, reset_note=reset_note,
                             replay=first_attempt if n == 1 else None)
             reset_note = False
+            last = a
             if a.infra_error:
                 record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n, rolled_back=False)
                 stop = "infrastructure_error"
@@ -318,10 +336,12 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
             in_cfg += 1
             trigger, rolled = None, False
             if a.solved:                                                   # 1. diagnostics pass
-                a.verified = runner.verify(ws, TEST_TIMEOUT_S).all_pass
+                final_verify = runner.verify(ws, TEST_TIMEOUT_S)
+                a.verified = final_verify.all_pass
                 record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n, rolled_back=False)
                 stop = "solved" if a.verified else "verification_failed"
                 log(f"  attempt {n} [{cfg['config_id']}] diagnostics pass -> {stop}")
+                emit("attempt", **_attempt_event(n, cfg, a, rolled_back=False))
                 break
             if arm != "plain_retry":
                 if a.regressed:                                            # 2. regression
@@ -348,6 +368,9 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                    rolled_back=rolled, trigger=trigger)
             if trigger:
                 triggers.append({"attempt_n": n, "trigger": trigger})
+            emit("attempt", **_attempt_event(n, cfg, a, rolled_back=rolled))
+            if trigger:
+                emit("trigger", trigger=trigger, attempt_n=n)
             cfg_history.append(a)
             prior.append(summarize(n, a, rolled))
             log(f"  attempt {n} [{cfg['config_id']}] failing={len(a.report.failed)} "
@@ -364,6 +387,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                                   trigger=trigger, configs=configs, snapshot=snapshot,
                                   registry=registry, protocol=protocol, repeat=repeat)
                 chosen, chosen_row = row["chosen_config_id"], row
+                emit("selection", arm=arm, row=row)
                 if chosen is None:
                     db()["decisions"].insert_one({**row, "created_at": datetime.now(timezone.utc)})
                     stop = "configurations_exhausted"
@@ -372,7 +396,10 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                     switch_strategy(ws, row, cfg["config_id"])
                 except DirtyTreeError as e:
                     stop, dirty = "reset_failed", e
+                    emit("reset", verified=False, **row.get("reset", {}))
                     break
+                emit("reset", verified=True, **row["reset"])
+                emit("switch", from_config=cfg["config_id"], to_config=chosen)
                 log(f"  -> switch {cfg['config_id']} -> {chosen} ({arm}); reset to seed, hash verified")
                 cfg, switched, in_cfg, cfg_history = configs[chosen], True, 0, []
                 cur, reset_note, switch_at = base, True, n
@@ -394,6 +421,33 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
            **selection_log(arm, task.family, stop, switch_at, triggers, chosen_row, n),
            "created_at": datetime.now(timezone.utc)}
     db()["runs"].insert_one(dict(doc))
+    emit("final", stop_reason=stop, verified_fix=doc["verified_fix"],
+         visible_pass=bool(last is not None and last.solved), verify=_verify_event(final_verify),
+         cost_usd=doc["cost_usd"], input_tokens=doc["input_tokens"],
+         output_tokens=doc["output_tokens"], attempts=n, run_id=run_id)
     if dirty:
         raise dirty
     return doc
+
+
+def _n_tests(report: TestReport) -> int:
+    return len(report.passed) + len(report.failed) + len(report.collection_errors)
+
+
+def _attempt_event(n: int, cfg: dict, a: AttemptResult, *, rolled_back: bool) -> dict:
+    return {"attempt_n": n, "config_id": cfg["config_id"], "edited": list(a.edited),
+            "visible_passed": len(a.report.passed), "visible_total": _n_tests(a.report),
+            "regressed": list(a.regressed), "rolled_back": rolled_back, "error": a.error,
+            "solved": a.solved}
+
+
+def _verify_event(v: TestReport | None) -> dict | None:
+    """Protected-test outcome for presentation: counts as pytest reports them, plus the static
+    check. None when the harness never verified (diagnostics did not pass)."""
+    if v is None:
+        return None
+    return {"summary": (v.raw or {}).get("summary") or {},
+            "duration_s": (v.raw or {}).get("duration", v.duration_s),
+            "failed": [t for t in v.failed if not t.startswith("static::")],
+            "static_failed": any(t.startswith("static::") for t in v.failed),
+            "timed_out": v.timed_out, "all_pass": v.all_pass}
