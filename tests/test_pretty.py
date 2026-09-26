@@ -91,13 +91,19 @@ def test_pretty_changes_output_only_never_the_stored_run(monkeypatch, capsys, ar
     assert len(plain["attempts"]) == 3 and "'verified_fix': True" in plain["runs"][0]
     assert "attempt 1 [focused]" in plain_out and "attempt 1 [focused]" not in pretty_out   # no raw logs
     badge = "PLAIN AGENT" if arm == "plain_retry" else "REFLEX"
-    assert f"[ {badge} ] task pp-dev-02 · arm {arm}" in pretty_out
-    assert "[ ATTEMPT 1 ] (focused) · editing net_pay → VISIBLE TESTS 5/6" in pretty_out
-    assert "[ FINAL ] VISIBLE TESTS ✓ · HIDDEN TESTS ✓ (4 passed in " in pretty_out
-    assert "STATIC CHECK ✓" in pretty_out and "FIXED  ·  $0.0030  ·  3,600 tokens" in pretty_out
+    assert f"[ {badge} ] pp-dev-02 · {arm} · " in pretty_out
+    assert "[ CONTEXT ] (focused) → net_pay · ≈" in pretty_out
+    assert "[ ATTEMPT 1 ] (focused) · editing net_pay → VISIBLE TESTS █████░ 5/6" in pretty_out
+    assert "      -    gross = round(min(hours, 40) * rate_cents" in pretty_out          # key diff, - then +
+    assert "      +    gross = round(min(hours, 40) * rate_cents" in pretty_out
+    assert "[ FINAL ] VISIBLE TESTS ✓ · HIDDEN TESTS ✓ (4 passed in " in pretty_out and "STATIC CHECK ✓" in pretty_out
+    for line in ("│ FIXED · hidden tests passed", "│ attempts used: 3 of 3", "│ 3,600 tokens (3,000 in / 600 out) · $0.0030"):
+        assert line in pretty_out
+    assert all(len(line) <= 110 for line in pretty_out.splitlines())
+    assert "⠋" not in pretty_out                               # no spinner when not a terminal
     if arm == "fallback":
         for line in ("[ SAME STRATEGY ] detected", "[ RESET ] → seed hash verified", "[ SWITCH ] → caller",
-                     "[ ATTEMPT 3 ] (caller) · editing net_pay, module-level code → VISIBLE TESTS 6/6"):
+                     "[ ATTEMPT 3 ] (caller) · editing net_pay, module-level code → VISIBLE TESTS ██████ 6/6"):
             assert line in pretty_out
     else:
         assert "SWITCH" not in pretty_out and "SAME STRATEGY" not in pretty_out
@@ -109,8 +115,8 @@ def test_memory_line_and_summary_formatting():
         {"checkpoint_id": "mem-v1-sem-dev-02", "family": "semantic_repetition", "semantic_score": 0.8312}]})
     p("final", stop_reason="verification_failed", verified_fix=False, visible_pass=True,
       verify={"summary": {"passed": 3, "failed": 1}, "duration_s": 0.4, "failed": ["t"], "static_failed": True,
-              "timed_out": False}, cost_usd=0.01, input_tokens=10, output_tokens=5)
-    assert p.lines[0] == ("[ MONGODB MEMORY ] → nearest past case: mem-v1-sem-dev-02 (semantic_repetition, "
+              "timed_out": False}, cost_usd=0.01, input_tokens=10, output_tokens=5, attempts=2)
+    assert p.lines[0] == ("[ MONGODB MEMORY ] nearest: mem-v1-sem-dev-02 (semantic_repetition, "
                           "similarity 0.83) → solved by dependency")
     assert p.lines[1] == "[ FINAL ] VISIBLE TESTS ✓ · HIDDEN TESTS ✗ (1 failed, 3 passed in 0.40s) · STATIC CHECK ✗"
     assert "NOT FIXED" in p.lines[2] and "visible tests passed, hidden tests failed" in p.lines[2]
@@ -124,6 +130,12 @@ def test_regression_attempt_line_counts_the_broken_tests():
     p("attempt", attempt_n=1, regressed=["t::a"], trigger="regression", **base)
     p("attempt", attempt_n=2, regressed=["t::a", "t::b"], trigger="regression", **base)
     p("attempt", attempt_n=3, regressed=["t::a"], trigger=None, **base)   # plain_retry: nothing triggered
-    assert p.lines[0].endswith("VISIBLE TESTS 2/5 · 1 previously passing test broke")
-    assert p.lines[1].endswith("VISIBLE TESTS 2/5 · 2 previously passing tests broke")
-    assert p.lines[2].endswith("VISIBLE TESTS 2/5")
+    assert p.lines[0].endswith("VISIBLE TESTS ██░░░ 2/5 · 1 previously passing test broke")
+    assert p.lines[1].endswith("VISIBLE TESTS ██░░░ 2/5 · 2 previously passing tests broke")
+    assert p.lines[2].endswith("VISIBLE TESTS ██░░░ 2/5")
+
+
+def test_no_diff_flag_hides_the_diff(monkeypatch, capsys):
+    run_cli(monkeypatch, ["run", "--task", "pp-dev-02", "--arm", "plain_retry", "--phase", "demo", "--pretty", "--no-diff"])
+    out = capsys.readouterr().out
+    assert "[ ATTEMPT 1 ]" in out and "      +" not in out and "      -" not in out

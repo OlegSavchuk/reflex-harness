@@ -67,10 +67,12 @@ def restore(ws: Workspace, files: dict) -> None:
 def run_attempt(runner: LocalRunner, ws: Workspace, parent_report: TestReport, config: dict,
                 pinned: PinnedFocal, prior: list[str], *, run_id: str, phase: str,
                 attempt_n: int, verify: bool = True, reset_note: bool = False,
-                replay: "AttemptResult | None" = None) -> AttemptResult:
+                replay: "AttemptResult | None" = None, events=None) -> AttemptResult:
     """Build context, call the model (two calls for diagnostic), apply, test, verify.
     replay: reuse a shared attempt's model output (same prompt) instead of a new call;
-    its cost was logged once under the shared run id."""
+    its cost was logged once under the shared run id.
+    events: optional observe-only presentation hook (see run_task)."""
+    ev = events or (lambda kind, **data: None)
     task = ws.task
     parent_files = snapshot(ws)
     ctx = build_context(ws, parent_report, config, pinned)
@@ -83,6 +85,7 @@ def run_attempt(runner: LocalRunner, ws: Workspace, parent_report: TestReport, c
                                  input_tokens=0, output_tokens=0, cost_usd=replay.cost_usd,
                                  latency_ms=0, error=None if data else replay.error)
     elif config["workflow"]["diagnostic_first"]:
+        ev("wait", what="model writing a check script")
         r1 = agent.call(render(ctx, task.goal, prior, step="check", reset_note=reset_note),
                         run_id=run_id, phase=phase, attempt_n=attempt_n, step="check")
         cost += r1.cost_usd
@@ -91,6 +94,10 @@ def run_attempt(runner: LocalRunner, ws: Workspace, parent_report: TestReport, c
         check = (script, out)
     if replay is None:
         messages = render(ctx, task.goal, prior, step="patch", check=check, reset_note=reset_note)
+        ev("context", config_id=config["config_id"],
+           shown=list(dict.fromkeys(s.name for s in [ctx.focal, *ctx.callers, *ctx.deps])),
+           approx_tokens=sum(len(m["content"]) for m in messages) // 4)
+        ev("wait", what="model thinking")
         reply = agent.call(messages, run_id=run_id, phase=phase, attempt_n=attempt_n)
     cost += reply.cost_usd
     report = parent_report
@@ -105,6 +112,7 @@ def run_attempt(runner: LocalRunner, ws: Workspace, parent_report: TestReport, c
             error = f"patch rejected: {e}"
     try:
         if patch is not None:
+            ev("wait", what="running visible tests")
             report = runner.run(ws, task.diag_cmd, TEST_TIMEOUT_S)
         solved = patch is not None and report.all_pass
         verified = bool(solved and verify and runner.verify(ws, TEST_TIMEOUT_S).all_pass)
@@ -326,7 +334,8 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
             parent = cur
             a = run_attempt(runner, ws, parent, cfg, pinned, prior, run_id=run_id, phase=phase,
                             attempt_n=n, verify=False, reset_note=reset_note,
-                            replay=first_attempt if n == 1 else None)
+                            replay=first_attempt if n == 1 else None,
+                            events=emit if events is not None else None)
             reset_note = False
             last = a
             if a.infra_error:
@@ -336,6 +345,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
             in_cfg += 1
             trigger, rolled = None, False
             if a.solved:                                                   # 1. diagnostics pass
+                emit("wait", what="running hidden tests")
                 final_verify = runner.verify(ws, TEST_TIMEOUT_S)
                 a.verified = final_verify.all_pass
                 record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n, rolled_back=False)
@@ -438,7 +448,21 @@ def _attempt_event(n: int, cfg: dict, a: AttemptResult, *, rolled_back: bool, tr
     return {"attempt_n": n, "config_id": cfg["config_id"], "edited": list(a.edited), "trigger": trigger,
             "visible_passed": len(a.report.passed), "visible_total": _n_tests(a.report),
             "regressed": list(a.regressed), "rolled_back": rolled_back, "error": a.error,
-            "solved": a.solved}
+            "solved": a.solved, "diff": _diff_lines(a.parent_files, a.files)}
+
+
+def _diff_lines(before: dict, after: dict, limit: int = 6) -> list[str]:
+    """First changed lines (-/+) of an attempt, for presentation only."""
+    import difflib
+    out = []
+    for path in sorted(set(before) | set(after)):
+        for line in difflib.unified_diff((before.get(path) or "").splitlines(),
+                                         (after.get(path) or "").splitlines(), lineterm="", n=0):
+            if line[:1] in "+-" and not line.startswith(("+++", "---")) and line[1:].strip():
+                out.append(line)
+                if len(out) >= limit:
+                    return out
+    return out
 
 
 def _verify_event(v: TestReport | None) -> dict | None:

@@ -20,9 +20,10 @@ def main(argv=None):
     r.add_argument("--pretty", action="store_true",
                    help="demo output: one coloured line per event, no raw logs (presentation only)")
     r.add_argument("--save-dir", help="also write the run record (JSON) and the output transcript here")
+    r.add_argument("--no-diff", action="store_true", help="with --pretty: hide the per-attempt key diff")
     args = ap.parse_args(argv)
     if args.pretty:
-        pretty = Pretty(model=os.environ.get("CODING_MODEL", "?"))
+        pretty = Pretty(model=os.environ.get("CODING_MODEL", "?"), diff=not args.no_diff)
         doc = run_task(args.task, args.arm, phase=args.phase, repeat=args.repeat,
                        log=lambda m: None, events=pretty)
         transcript = pretty.lines
