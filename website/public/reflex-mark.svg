@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Reflex">
+  <rect x="1.5" y="1.5" width="45" height="45" rx="12" fill="#100d0b" stroke="#493021"/>
+  <path d="M11.5 20.5a13.5 13.5 0 0 1 23.2-7.4l2.8 3.1" fill="none" stroke="#ff5b0b" stroke-linecap="round" stroke-width="3.2"/>
+  <path d="M36.5 10.7v6.7h-6.8" fill="none" stroke="#ff5b0b" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"/>
+  <path d="M36.5 27.5a13.5 13.5 0 0 1-23.2 7.4l-2.8-3.1" fill="none" stroke="#e94d09" stroke-linecap="round" stroke-width="3.2"/>
+  <path d="M11.5 37.3v-6.7h6.8" fill="none" stroke="#e94d09" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.2"/>
+  <path d="M19 24h10" fill="none" stroke="#f3f0ec" stroke-linecap="round" stroke-width="2"/>
+  <circle cx="24" cy="24" r="2.2" fill="#ff5b0b"/>
+</svg>

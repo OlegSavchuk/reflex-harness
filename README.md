@@ -1,4 +1,4 @@
-# <img src="docs/logo.svg" alt="Reflex logo" width="40" align="center" /> Reflex
+# <img src="logo.svg" alt="Reflex logo" width="40" align="center" /> Reflex
 
 **Website:** [website-sigma-virid-35.vercel.app](https://website-sigma-virid-35.vercel.app/)
 
