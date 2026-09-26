@@ -1,0 +1,70 @@
+{
+ "stamp": "20260926T194116",
+ "results": [
+  {
+   "task_id": "pp-dev-01",
+   "family": "partial_progress",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-pp-dev-01-20260926T194116",
+   "outcome": "verified",
+   "edited": [
+    "courier/calendar.py::<module>",
+    "courier/sla.py::delivery_date"
+   ],
+   "failing_after": [],
+   "note": "Reject negative business-day counts and correct Founders' Day to June 12 so delivery dates skip the company holiday.",
+   "error": null,
+   "cost_usd": 0.000301
+  },
+  {
+   "task_id": "pp-dev-02",
+   "family": "partial_progress",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-pp-dev-02-20260926T194116",
+   "outcome": "verified",
+   "edited": [
+    "payroll/pay.py::net_pay",
+    "payroll/tax.py::<module>"
+   ],
+   "failing_after": [],
+   "note": "Applied the 1.5 overtime multiplier and aligned the top tax band with its documented 35% rate.",
+   "error": null,
+   "cost_usd": 0.000409
+  },
+  {
+   "task_id": "pp-dev-03",
+   "family": "partial_progress",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-pp-dev-03-20260926T194116",
+   "outcome": "verified",
+   "edited": [
+    "lettings/calc/proration.py::<module>",
+    "lettings/rent.py::first_invoice"
+   ],
+   "failing_after": [],
+   "note": "Cap the deposit at DEPOSIT_CAP_CENTS and correct September's day count so proration uses the calendar month length.",
+   "error": null,
+   "cost_usd": 0.000444
+  },
+  {
+   "task_id": "pp-dev-04",
+   "family": "partial_progress",
+   "split": "dev",
+   "designed_config": "dependency",
+   "run_id": "dryrun-pp-dev-04-20260926T194116",
+   "outcome": "verified",
+   "edited": [
+    "transit/fares.py::fare",
+    "transit/network/zones.py::<module>"
+   ],
+   "failing_after": [],
+   "note": "Corrected Airport to zone 3 and made only riders younger than 16 eligible for the child fare.",
+   "error": null,
+   "cost_usd": 0.000241
+  }
+ ],
+ "cost_usd": 0.001395
+}

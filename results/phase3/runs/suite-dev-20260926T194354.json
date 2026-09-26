@@ -1,0 +1,164 @@
+[
+ {
+  "run_id": "dev-fallback-pp-dev-01-20260926T194354",
+  "phase": "dev",
+  "arm": "fallback",
+  "task_id": "pp-dev-01",
+  "family": "partial_progress",
+  "repeat": 3,
+  "stop_reason": "budget_exhausted",
+  "verified_fix": false,
+  "attempts": 3,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0025817,
+  "input_tokens": 1316,
+  "output_tokens": 3362,
+  "shared_attempt": {
+   "run_id": "dev-shared-pp-dev-01-20260926T194354",
+   "cost_usd": 0.0007691
+  },
+  "snapshot_id": null,
+  "switch_attempt": 2,
+  "triggers": [
+   {
+    "attempt_n": 2,
+    "trigger": "same_strategy"
+   }
+  ],
+  "neighbours": null,
+  "random_seed": null,
+  "query_sha256": null,
+  "embedding_sha256": null,
+  "semantic_margin": null,
+  "chosen_config": "caller",
+  "designed_config": "dependency",
+  "chosen_matches_designed": false,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 19:44:45.515414+00:00"
+ },
+ {
+  "run_id": "dev-fallback-pp-dev-02-20260926T194354",
+  "phase": "dev",
+  "arm": "fallback",
+  "task_id": "pp-dev-02",
+  "family": "partial_progress",
+  "repeat": 3,
+  "stop_reason": "rolled_back_budget_exhausted",
+  "verified_fix": false,
+  "attempts": 3,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0025955999999999996,
+  "input_tokens": 1127,
+  "output_tokens": 4592,
+  "shared_attempt": {
+   "run_id": "dev-shared-pp-dev-02-20260926T194354",
+   "cost_usd": 0.0001869
+  },
+  "snapshot_id": null,
+  "switch_attempt": 2,
+  "triggers": [
+   {
+    "attempt_n": 2,
+    "trigger": "same_strategy"
+   },
+   {
+    "attempt_n": 3,
+    "trigger": "regression"
+   }
+  ],
+  "neighbours": null,
+  "random_seed": null,
+  "query_sha256": null,
+  "embedding_sha256": null,
+  "semantic_margin": null,
+  "chosen_config": "caller",
+  "designed_config": "dependency",
+  "chosen_matches_designed": false,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 19:45:00.821669+00:00"
+ },
+ {
+  "run_id": "dev-fallback-pp-dev-03-20260926T194354",
+  "phase": "dev",
+  "arm": "fallback",
+  "task_id": "pp-dev-03",
+  "family": "partial_progress",
+  "repeat": 3,
+  "stop_reason": "verification_failed",
+  "verified_fix": false,
+  "attempts": 2,
+  "switched": false,
+  "configs_used": [
+   "focused"
+  ],
+  "cost_usd": 0.0011584,
+  "input_tokens": 407,
+  "output_tokens": 1269,
+  "shared_attempt": {
+   "run_id": "dev-shared-pp-dev-03-20260926T194354",
+   "cost_usd": 0.0004832
+  },
+  "snapshot_id": null,
+  "switch_attempt": null,
+  "triggers": [],
+  "neighbours": null,
+  "random_seed": null,
+  "query_sha256": null,
+  "embedding_sha256": null,
+  "semantic_margin": null,
+  "chosen_config": null,
+  "designed_config": "dependency",
+  "chosen_matches_designed": null,
+  "pre_selection_end": "diagnostics_passed_before_switch (verification_failed)",
+  "created_at": "2026-09-26 19:44:27.733686+00:00"
+ },
+ {
+  "run_id": "dev-fallback-pp-dev-04-20260926T194354",
+  "phase": "dev",
+  "arm": "fallback",
+  "task_id": "pp-dev-04",
+  "family": "partial_progress",
+  "repeat": 3,
+  "stop_reason": "verification_failed",
+  "verified_fix": false,
+  "attempts": 3,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0015784,
+  "input_tokens": 1249,
+  "output_tokens": 1424,
+  "shared_attempt": {
+   "run_id": "dev-shared-pp-dev-04-20260926T194354",
+   "cost_usd": 0.0007415
+  },
+  "snapshot_id": null,
+  "switch_attempt": 2,
+  "triggers": [
+   {
+    "attempt_n": 2,
+    "trigger": "same_strategy"
+   }
+  ],
+  "neighbours": null,
+  "random_seed": null,
+  "query_sha256": null,
+  "embedding_sha256": null,
+  "semantic_margin": null,
+  "chosen_config": "caller",
+  "designed_config": "dependency",
+  "chosen_matches_designed": false,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 19:44:31.242854+00:00"
+ }
+]

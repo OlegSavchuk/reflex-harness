@@ -746,6 +746,17 @@ Dev tasks only (pp-dev-01..04); family-C eval tasks get no model call except the
 - **Solvability:** one designed-config (`dependency`) attempt from the seed per dev task
   (`scripts/dry_run.py`), as in Phase 2.
 
+**Result (dev evidence, not eval; `results/phase3/`).** PASS: `same_strategy` was the first trigger
+in 9 of 12 runs (pp-dev-01, -02, -04: 3/3 each, always at attempt 2, after attempt 1 fixed bug #1
+without a regression). No run's first trigger was a regression or an exact repeat. The other 3
+runs (all pp-dev-03) never switched: the focused config bypassed the buggy helper by
+re-implementing proration inline with `calendar.monthrange` (the task's own
+`local_workaround_in_focal` hack), passed diagnostics and was stopped by the protected tests
+(`verification_failed`). pp-dev-03 hides bug #2 poorly: its focal docstring states the
+proration rule and month lengths are common knowledge. Solvability: `dependency` verified 4/4.
+After the switch, `fallback` picked `caller` in all 9 runs, which cannot see the helper: 0/9
+verified (5 hacked diagnostics, 3 regressed, 1 budget).
+
 ---
 
 ## 14. Dashboard & demo
@@ -916,4 +927,5 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | 2026-09-26 | Atlas-internals embedding test renamed `test_atlas_internals_...` and marked Preview-dependent: skips with an explicit message if `__mdb_internal_search` is not readable, never a silent pass | Automated Embedding is a Preview feature; its internal store may change |
 | 2026-09-26 | Gate 8 lexical evidence (Phase 1 "token analysis", reported in chat, summarized at `c34392d`) made reproducible: `scripts/lexical_evidence.py` → `results/phase1/lexical_evidence.json` (read-only) | Re-run: 0 shared tokens across the 28 Gate 8 task pairs; 0 matches for each eval query (offline overlap and the real `$search` on the retained Gate 8 index `ckpt_text`); 0 of 15 Gate 8 memory decisions had any lexical overlap, so the branch could not change top-1/top-2 |
 | Gate 9 P3 | **Family C (`partial_progress`)**: 8 detection tasks (4 dev, 4 eval), designed `dependency`, `partial.patch` per task + validator check; `DESIGNED_CONFIG["partial_progress"] = "dependency"`; detection dry-run protocol and pass criterion pre-declared (§13.7) | Gate 8: every family-B switch was an attempt-1 regression, so the same-strategy rule was never tested. Validation 41/41; 16/16 new hacks have teeth; every partial fix shrinks the failing set without regressions, edits inside the focal region |
+| Gate 9 P3 | Stored queries for the 8 family-C tasks; solvability dry run (`results/phase3/dryrun.json`, `dry_run.py --out` now a path under `results/`); detection dry run per §13.7 (`scripts/detection_report.py`, `results/phase3/detection.json`, suite files in `results/phase3/runs/`) | PASS 9/12 (`same_strategy` first); 3/12 no switch, all pp-dev-03 (focused bypassed the helper; protected tests caught it); 0 regressions or exact repeats as first trigger. Solvability 4/4. Phase 3 cost $0.026 |
 

@@ -1,0 +1,471 @@
+{
+ "suite_files": [
+  "suite-dev-20260926T194131.json",
+  "suite-dev-20260926T194243.json",
+  "suite-dev-20260926T194354.json"
+ ],
+ "distribution": {
+  "same_strategy": 9,
+  "none (verification_failed)": 3
+ },
+ "same_strategy_first": 9,
+ "runs": 12,
+ "verdict": "PASS",
+ "cost_usd": 0.022927,
+ "rows": [
+  {
+   "task_id": "pp-dev-01",
+   "repeat": 1,
+   "run_id": "dev-fallback-pp-dev-01-20260926T194131",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "verification_failed",
+   "switch_attempt": 2,
+   "cost_usd": 0.0021441999999999998,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-01",
+   "repeat": 2,
+   "run_id": "dev-fallback-pp-dev-01-20260926T194243",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "verification_failed",
+   "switch_attempt": 2,
+   "cost_usd": 0.0022892999999999998,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-01",
+   "repeat": 3,
+   "run_id": "dev-fallback-pp-dev-01-20260926T194354",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "budget_exhausted",
+   "switch_attempt": 2,
+   "cost_usd": 0.0025817,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-02",
+   "repeat": 1,
+   "run_id": "dev-fallback-pp-dev-02-20260926T194131",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "rolled_back_budget_exhausted",
+   "switch_attempt": 2,
+   "cost_usd": 0.0027852999999999997,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 2,
+     "regression": true,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": true,
+     "trigger": "regression"
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-02",
+   "repeat": 2,
+   "run_id": "dev-fallback-pp-dev-02-20260926T194243",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "rolled_back_budget_exhausted",
+   "switch_attempt": 2,
+   "cost_usd": 0.0024710999999999995,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 2,
+     "regression": true,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": true,
+     "trigger": "regression"
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-02",
+   "repeat": 3,
+   "run_id": "dev-fallback-pp-dev-02-20260926T194354",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "rolled_back_budget_exhausted",
+   "switch_attempt": 2,
+   "cost_usd": 0.0025955999999999996,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 2,
+     "regression": true,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": true,
+     "trigger": "regression"
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-03",
+   "repeat": 1,
+   "run_id": "dev-fallback-pp-dev-03-20260926T194131",
+   "first_trigger": null,
+   "first_trigger_attempt": null,
+   "stop_reason": "verification_failed",
+   "switch_attempt": null,
+   "cost_usd": 0.0007427,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-03",
+   "repeat": 2,
+   "run_id": "dev-fallback-pp-dev-03-20260926T194243",
+   "first_trigger": null,
+   "first_trigger_attempt": null,
+   "stop_reason": "verification_failed",
+   "switch_attempt": null,
+   "cost_usd": 0.0008352,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-03",
+   "repeat": 3,
+   "run_id": "dev-fallback-pp-dev-03-20260926T194354",
+   "first_trigger": null,
+   "first_trigger_attempt": null,
+   "stop_reason": "verification_failed",
+   "switch_attempt": null,
+   "cost_usd": 0.0011584,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-04",
+   "repeat": 1,
+   "run_id": "dev-fallback-pp-dev-04-20260926T194131",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "verification_failed",
+   "switch_attempt": 2,
+   "cost_usd": 0.0018631,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-04",
+   "repeat": 2,
+   "run_id": "dev-fallback-pp-dev-04-20260926T194243",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "verification_failed",
+   "switch_attempt": 2,
+   "cost_usd": 0.0018819,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  },
+  {
+   "task_id": "pp-dev-04",
+   "repeat": 3,
+   "run_id": "dev-fallback-pp-dev-04-20260926T194354",
+   "first_trigger": "same_strategy",
+   "first_trigger_attempt": 2,
+   "stop_reason": "verification_failed",
+   "switch_attempt": 2,
+   "cost_usd": 0.0015784,
+   "attempts": [
+    {
+     "attempt_n": 1,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    },
+    {
+     "attempt_n": 2,
+     "config": "focused",
+     "failing": 1,
+     "regression": false,
+     "diag_pass": false,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": "same_strategy"
+    },
+    {
+     "attempt_n": 3,
+     "config": "caller",
+     "failing": 0,
+     "regression": false,
+     "diag_pass": true,
+     "verified": false,
+     "rolled_back": false,
+     "trigger": null
+    }
+   ]
+  }
+ ]
+}

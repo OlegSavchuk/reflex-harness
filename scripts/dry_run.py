@@ -3,7 +3,8 @@ the seed, no history, no ladder, verified. Dev evidence that the task is solvabl
 not an eval result, never re-sampled. Writes results/phase2/dryrun.json.
 
 Usage: python scripts/dry_run.py [task_id ...] [--out NAME]
-  default tasks: active tasks added in Gate 9; --out (default dryrun.json) is never overwritten
+  default tasks: active tasks added in Gate 9; --out is a path under results/ (default
+  phase2/dryrun.json) and is never overwritten
 """
 import argparse
 import json
@@ -48,9 +49,9 @@ def one(entry, stamp):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("tasks", nargs="*")
-    ap.add_argument("--out", default="dryrun.json")
+    ap.add_argument("--out", default="phase2/dryrun.json")
     args = ap.parse_args()
-    out = ROOT / "results" / "phase2" / args.out
+    out = ROOT / "results" / args.out
     if out.exists():
         sys.exit(f"{out} exists; dry runs are never re-sampled or overwritten")
     index = json.loads((TASKS_DIR / "index.json").read_text())["tasks"]
