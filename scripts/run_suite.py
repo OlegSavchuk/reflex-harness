@@ -61,7 +61,10 @@ def main():
           f"{'chosen/designed':<22} {'top-1 (score)':<34} {'top-2 (score)':<34} {'pre-selection end':<36} cost")
     for d in docs:
         nb = d.get("neighbours") or []
-        fmt = lambda x: f"{x['family'][:3]}:{x['checkpoint_id'].replace('mem-v1-', '')} ({x['fusion_score']:.4f})"  # noqa: E731
+        fmt = lambda x: (f"{x['family'][:3]}:{x['checkpoint_id'].split('-', 2)[-1]} "  # noqa: E731
+                         f"({x.get('semantic_score') or 0:.3f})")
+        if d.get("semantic_margin") is not None:
+            d["pre_selection_end"] = (d.get("pre_selection_end") or "") + f" margin={d['semantic_margin']:+.3f}"
         cd = f"{d.get('chosen_config') or '-'}/{d.get('designed_config') or '-'}"
         print(f"{d['task_id']:<12} {d['arm']:<12} {str(d['stop_reason'])[:21]:<21} {str(d['verified_fix']):<5} "
               f"{str(d['attempts']):<3} {str(d.get('switch_attempt') or '-'):<7} {cd:<22} "

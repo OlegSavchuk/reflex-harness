@@ -50,6 +50,7 @@ def test_memory_selection_uses_the_stored_query_and_never_the_narrator(monkeypat
     monkeypatch.setattr(narrator, "narrate_task", forbidden)
     monkeypatch.setattr(agent, "call", forbidden)
     monkeypatch.setattr(controller, "_log_embed", lambda *a, **k: None)
+    monkeypatch.setattr(controller, "lexical_match_count", lambda *a, **k: 0)
     retrieved = [{"checkpoint_id": "c1", "family": "semantic_repetition",
                   "fusion": {"value": 0.0164, "details": []}},
                  {"checkpoint_id": "c2", "family": "oscillation", "fusion": {"value": 0.0161, "details": []}}]
@@ -79,3 +80,36 @@ def test_two_runs_retrieve_identical_top_k_from_the_fixed_query():
         sa = next(d["value"] for d in a["fusion"]["details"] if d["inputPipelineName"] == "semantic")
         sb = next(d["value"] for d in b["fusion"]["details"] if d["inputPipelineName"] == "semantic")
         assert abs(sa - sb) < 1e-3
+
+
+def _memory_row(monkeypatch, lexical_count):
+    monkeypatch.setattr(controller, "_log_embed", lambda *a, **k: None)
+    monkeypatch.setattr(controller, "lexical_match_count", lambda *a, **k: lexical_count)
+
+    def doc(cid, fam, fusion, sem):
+        return {"checkpoint_id": cid, "family": fam, "fusion": {"value": fusion, "details": [
+            {"inputPipelineName": "lexical", "rank": 0, "weight": 1.0},
+            {"inputPipelineName": "semantic", "rank": 1 if sem > 0.78 else 2, "weight": 1.0, "value": sem}]}}
+    retrieved = [doc("c1", "semantic_repetition", 0.0164, 0.80), doc("c2", "oscillation", 0.0161, 0.77)]
+    fake = {"attempts": _Coll(distinct=["focused"]),
+            "checkpoints": _Coll(results=[retrieved, [{"_id": "dependency", "score": 0.5}]])}
+    monkeypatch.setattr(controller, "db", lambda: fake)
+    return controller.select_next("memory", task=TASK, run_id="r", phase="dev", attempt_n=1,
+                                  trigger="regression", configs={c["config_id"]: c for c in config.CONFIGS_R1},
+                                  snapshot="mem-v1", registry="r1", protocol="p1")
+
+
+def test_retrieval_diagnostics_logged_with_gate8_margin_definition(monkeypatch):
+    row = _memory_row(monkeypatch, lexical_count=0)
+    r = row["retrieval"]
+    assert r["query_sha256"] == load_query(TASK)["query_sha256"]
+    assert abs(r["semantic_margin"] - (0.80 - 0.77)) < 1e-12 and r["lexical_matches"] == 0
+    assert [(t["rank"], t["family"], t["semantic_score"], t["lexical_rank"]) for t in row["retrieved"]] == \
+        [(1, "semantic_repetition", 0.80, 0), (2, "oscillation", 0.77, 0)]
+    log = controller.selection_log("memory", "semantic_repetition", "solved", 1, [], row, 2)
+    assert log["semantic_margin"] == r["semantic_margin"] and log["query_sha256"] == r["query_sha256"]
+    assert [n["semantic_score"] for n in log["neighbours"]] == [0.80, 0.77]
+
+
+def test_lexical_diagnostic_never_changes_the_choice(monkeypatch):
+    assert _memory_row(monkeypatch, 0)["chosen_config_id"] == _memory_row(monkeypatch, 7)["chosen_config_id"]

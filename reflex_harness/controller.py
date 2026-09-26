@@ -186,6 +186,22 @@ def _log_embed(run_id: str, phase: str, attempt_n: int, text: str, latency_ms: i
              cost_usd=tokens * prices.VOYAGE_4_PER_TOKEN, latency_ms=latency_ms, estimated=True)
 
 
+def _detail(doc: dict, pipeline: str, key: str):
+    return next((d.get(key) for d in (doc.get("fusion") or {}).get("details", [])
+                 if d.get("inputPipelineName") == pipeline), None)
+
+
+def lexical_match_count(symbols: str, snapshot: str, protocol: str) -> int:
+    """Diagnostic only (never feeds ranking or selection): how many checkpoints in the snapshot
+    the lexical branch matches for these symbols. No model call."""
+    return next(db()["checkpoints"].aggregate([
+        {"$search": {"index": _config.TEXT_INDEX, "compound": {
+            "must": [{"text": {"query": symbols, "path": "error_symbols"}}],
+            "filter": [{"equals": {"path": "snapshot_id", "value": snapshot}},
+                       {"equals": {"path": "compat.protocol", "value": protocol}}]}}},
+        {"$count": "n"}]), {"n": 0})["n"] if symbols.strip() else 0
+
+
 def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigger: str,
                 configs: dict, snapshot: str, registry: str, protocol: str,
                 repeat: int = 0) -> dict:
@@ -221,12 +237,21 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
             status, chosen = "insufficient_evidence", (untried[0]["config_id"] if untried else None)
         else:
             status, chosen = "selected", rows[0]["_id"]
+        top = [{"rank": i, "checkpoint_id": r["checkpoint_id"], "family": r.get("family"),
+                "failure_narrative": r.get("failure_narrative"),
+                "fusion_score": (r.get("fusion") or {}).get("value"),
+                "semantic_score": _detail(r, "semantic", "value"),
+                "semantic_rank": _detail(r, "semantic", "rank"),
+                "lexical_rank": _detail(r, "lexical", "rank")} for i, r in enumerate(retrieved, 1)]
+        sem = [t["semantic_score"] for t in top]
         row.update(narrative=narrative, narrative_violations=violations, error_symbols=symbols,
-                   query_sha256=q["query_sha256"],
-                   retrieved=[{"checkpoint_id": r["checkpoint_id"], "family": r.get("family"),
-                               "failure_narrative": r.get("failure_narrative"),
-                               "fusion_score": (r.get("fusion") or {}).get("value")} for r in retrieved],
+                   query_sha256=q["query_sha256"], retrieved=top,
                    candidates=rows, chosen_config_id=chosen, status=status)
+        # diagnostics, computed after the choice; same margin definition as Gate 8 (top-1 - top-2)
+        row["retrieval"] = {
+            "query_sha256": q["query_sha256"],
+            "semantic_margin": (sem[0] - sem[1]) if len(sem) > 1 and None not in sem[:2] else None,
+            "lexical_matches": lexical_match_count(symbols, snapshot, protocol)}
     return row
 
 
@@ -278,10 +303,14 @@ def selection_log(arm: str, family: str, stop: str | None, switch_at: int | None
     else:
         pre = stop
     neighbours = [{"rank": i, "checkpoint_id": r["checkpoint_id"], "family": r.get("family"),
-                   "fusion_score": r.get("fusion_score")}
+                   "fusion_score": r.get("fusion_score"), "semantic_score": r.get("semantic_score")}
                   for i, r in enumerate((row or {}).get("retrieved") or [], 1)] or None
+    retrieval = (row or {}).get("retrieval") or {}
     return {"switch_attempt": switch_at, "triggers": triggers, "neighbours": neighbours,
             "random_seed": (row or {}).get("random_seed"),
+            "query_sha256": retrieval.get("query_sha256"),
+            "semantic_margin": retrieval.get("semantic_margin"),
+            "lexical_matches": retrieval.get("lexical_matches"),
             "chosen_config": chosen, "designed_config": designed,
             "chosen_matches_designed": (chosen == designed) if chosen else None,
             "pre_selection_end": pre}
