@@ -1,0 +1,456 @@
+[
+ {
+  "run_id": "eval-plain_retry-osc-eval-01-20260926T174056",
+  "phase": "eval",
+  "arm": "plain_retry",
+  "task_id": "osc-eval-01",
+  "family": "oscillation",
+  "stop_reason": "verification_failed",
+  "verified_fix": false,
+  "attempts": 2,
+  "switched": false,
+  "configs_used": [
+   "focused"
+  ],
+  "cost_usd": 0.0013419,
+  "input_tokens": 439,
+  "output_tokens": 1501,
+  "shared_attempt": {
+   "run_id": "eval-shared-osc-eval-01-20260926T174056",
+   "cost_usd": 0.0005475
+  },
+  "snapshot_id": null,
+  "switch_attempt": null,
+  "triggers": [],
+  "neighbours": null,
+  "chosen_config": null,
+  "designed_config": "caller",
+  "chosen_matches_designed": null,
+  "pre_selection_end": "arm_has_no_selection",
+  "created_at": "2026-09-26 17:42:03.979670+00:00"
+ },
+ {
+  "run_id": "eval-fallback-osc-eval-01-20260926T174056",
+  "phase": "eval",
+  "arm": "fallback",
+  "task_id": "osc-eval-01",
+  "family": "oscillation",
+  "stop_reason": "verification_failed",
+  "verified_fix": false,
+  "attempts": 2,
+  "switched": false,
+  "configs_used": [
+   "focused"
+  ],
+  "cost_usd": 0.0013089,
+  "input_tokens": 439,
+  "output_tokens": 1435,
+  "shared_attempt": {
+   "run_id": "eval-shared-osc-eval-01-20260926T174056",
+   "cost_usd": 0.0005475
+  },
+  "snapshot_id": null,
+  "switch_attempt": null,
+  "triggers": [],
+  "neighbours": null,
+  "chosen_config": null,
+  "designed_config": "caller",
+  "chosen_matches_designed": null,
+  "pre_selection_end": "diagnostics_passed_before_switch (verification_failed)",
+  "created_at": "2026-09-26 17:42:03.980933+00:00"
+ },
+ {
+  "run_id": "eval-memory-osc-eval-01-20260926T174056",
+  "phase": "eval",
+  "arm": "memory",
+  "task_id": "osc-eval-01",
+  "family": "oscillation",
+  "stop_reason": "solved",
+  "verified_fix": true,
+  "attempts": 3,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0015113,
+  "input_tokens": 2836,
+  "output_tokens": 1370,
+  "shared_attempt": {
+   "run_id": "eval-shared-osc-eval-01-20260926T174056",
+   "cost_usd": 0.0005475
+  },
+  "snapshot_id": "mem-v1",
+  "switch_attempt": 2,
+  "triggers": [
+   {
+    "attempt_n": 2,
+    "trigger": "same_strategy"
+   }
+  ],
+  "neighbours": [
+   {
+    "rank": 1,
+    "checkpoint_id": "mem-v1-osc-dev-01",
+    "family": "oscillation",
+    "fusion_score": 0.01639344262295082
+   },
+   {
+    "rank": 2,
+    "checkpoint_id": "mem-v1-sem-dev-02",
+    "family": "semantic_repetition",
+    "fusion_score": 0.016129032258064516
+   }
+  ],
+  "chosen_config": "caller",
+  "designed_config": "caller",
+  "chosen_matches_designed": true,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 17:42:06.133309+00:00"
+ },
+ {
+  "run_id": "eval-plain_retry-osc-eval-02-20260926T174056",
+  "phase": "eval",
+  "arm": "plain_retry",
+  "task_id": "osc-eval-02",
+  "family": "oscillation",
+  "stop_reason": "verification_failed",
+  "verified_fix": false,
+  "attempts": 2,
+  "switched": false,
+  "configs_used": [
+   "focused"
+  ],
+  "cost_usd": 0.0021932999999999996,
+  "input_tokens": 773,
+  "output_tokens": 1443,
+  "shared_attempt": {
+   "run_id": "eval-shared-osc-eval-02-20260926T174056",
+   "cost_usd": 0.0013945
+  },
+  "snapshot_id": null,
+  "switch_attempt": null,
+  "triggers": [],
+  "neighbours": null,
+  "chosen_config": null,
+  "designed_config": "caller",
+  "chosen_matches_designed": null,
+  "pre_selection_end": "arm_has_no_selection",
+  "created_at": "2026-09-26 17:42:01.647081+00:00"
+ },
+ {
+  "run_id": "eval-fallback-osc-eval-02-20260926T174056",
+  "phase": "eval",
+  "arm": "fallback",
+  "task_id": "osc-eval-02",
+  "family": "oscillation",
+  "stop_reason": "solved",
+  "verified_fix": true,
+  "attempts": 2,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0018974,
+  "input_tokens": 1434,
+  "output_tokens": 719,
+  "shared_attempt": {
+   "run_id": "eval-shared-osc-eval-02-20260926T174056",
+   "cost_usd": 0.0013945
+  },
+  "snapshot_id": null,
+  "switch_attempt": 1,
+  "triggers": [
+   {
+    "attempt_n": 1,
+    "trigger": "regression"
+   }
+  ],
+  "neighbours": null,
+  "chosen_config": "caller",
+  "designed_config": "caller",
+  "chosen_matches_designed": true,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 17:41:58.096146+00:00"
+ },
+ {
+  "run_id": "eval-memory-osc-eval-02-20260926T174056",
+  "phase": "eval",
+  "arm": "memory",
+  "task_id": "osc-eval-02",
+  "family": "oscillation",
+  "stop_reason": "solved",
+  "verified_fix": true,
+  "attempts": 2,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0027286999999999997,
+  "input_tokens": 2483,
+  "output_tokens": 2183,
+  "shared_attempt": {
+   "run_id": "eval-shared-osc-eval-02-20260926T174056",
+   "cost_usd": 0.0013945
+  },
+  "snapshot_id": "mem-v1",
+  "switch_attempt": 1,
+  "triggers": [
+   {
+    "attempt_n": 1,
+    "trigger": "regression"
+   }
+  ],
+  "neighbours": [
+   {
+    "rank": 1,
+    "checkpoint_id": "mem-v1-osc-dev-01",
+    "family": "oscillation",
+    "fusion_score": 0.01639344262295082
+   },
+   {
+    "rank": 2,
+    "checkpoint_id": "mem-v1-sem-dev-02",
+    "family": "semantic_repetition",
+    "fusion_score": 0.016129032258064516
+   }
+  ],
+  "chosen_config": "caller",
+  "designed_config": "caller",
+  "chosen_matches_designed": true,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 17:42:11.501534+00:00"
+ },
+ {
+  "run_id": "eval-plain_retry-sem-eval-01-20260926T174056",
+  "phase": "eval",
+  "arm": "plain_retry",
+  "task_id": "sem-eval-01",
+  "family": "semantic_repetition",
+  "stop_reason": "budget_exhausted",
+  "verified_fix": false,
+  "attempts": 3,
+  "switched": false,
+  "configs_used": [
+   "focused"
+  ],
+  "cost_usd": 0.0070824,
+  "input_tokens": 1065,
+  "output_tokens": 8949,
+  "shared_attempt": {
+   "run_id": "eval-shared-sem-eval-01-20260926T174056",
+   "cost_usd": 0.0025014
+  },
+  "snapshot_id": null,
+  "switch_attempt": null,
+  "triggers": [],
+  "neighbours": null,
+  "chosen_config": null,
+  "designed_config": "dependency",
+  "chosen_matches_designed": null,
+  "pre_selection_end": "arm_has_no_selection",
+  "created_at": "2026-09-26 17:43:10.775520+00:00"
+ },
+ {
+  "run_id": "eval-fallback-sem-eval-01-20260926T174056",
+  "phase": "eval",
+  "arm": "fallback",
+  "task_id": "sem-eval-01",
+  "family": "semantic_repetition",
+  "stop_reason": "verification_failed",
+  "verified_fix": false,
+  "attempts": 2,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0039005,
+  "input_tokens": 866,
+  "output_tokens": 2625,
+  "shared_attempt": {
+   "run_id": "eval-shared-sem-eval-01-20260926T174056",
+   "cost_usd": 0.0025014
+  },
+  "snapshot_id": null,
+  "switch_attempt": 1,
+  "triggers": [
+   {
+    "attempt_n": 1,
+    "trigger": "regression"
+   }
+  ],
+  "neighbours": null,
+  "chosen_config": "caller",
+  "designed_config": "dependency",
+  "chosen_matches_designed": false,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 17:42:15.062873+00:00"
+ },
+ {
+  "run_id": "eval-memory-sem-eval-01-20260926T174056",
+  "phase": "eval",
+  "arm": "memory",
+  "task_id": "sem-eval-01",
+  "family": "semantic_repetition",
+  "stop_reason": "solved",
+  "verified_fix": true,
+  "attempts": 2,
+  "switched": true,
+  "configs_used": [
+   "dependency",
+   "focused"
+  ],
+  "cost_usd": 0.0030533599999999998,
+  "input_tokens": 2073,
+  "output_tokens": 701,
+  "shared_attempt": {
+   "run_id": "eval-shared-sem-eval-01-20260926T174056",
+   "cost_usd": 0.0025014
+  },
+  "snapshot_id": "mem-v1",
+  "switch_attempt": 1,
+  "triggers": [
+   {
+    "attempt_n": 1,
+    "trigger": "regression"
+   }
+  ],
+  "neighbours": [
+   {
+    "rank": 1,
+    "checkpoint_id": "mem-v1-sem-dev-02",
+    "family": "semantic_repetition",
+    "fusion_score": 0.01639344262295082
+   },
+   {
+    "rank": 2,
+    "checkpoint_id": "mem-v1-osc-dev-01",
+    "family": "oscillation",
+    "fusion_score": 0.016129032258064516
+   }
+  ],
+  "chosen_config": "dependency",
+  "designed_config": "dependency",
+  "chosen_matches_designed": true,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 17:41:59.397323+00:00"
+ },
+ {
+  "run_id": "eval-plain_retry-sem-eval-02-20260926T174056",
+  "phase": "eval",
+  "arm": "plain_retry",
+  "task_id": "sem-eval-02",
+  "family": "semantic_repetition",
+  "stop_reason": "budget_exhausted",
+  "verified_fix": false,
+  "attempts": 3,
+  "switched": false,
+  "configs_used": [
+   "focused"
+  ],
+  "cost_usd": 0.0038769,
+  "input_tokens": 1036,
+  "output_tokens": 5040,
+  "shared_attempt": {
+   "run_id": "eval-shared-sem-eval-02-20260926T174056",
+   "cost_usd": 0.0012533
+  },
+  "snapshot_id": null,
+  "switch_attempt": null,
+  "triggers": [],
+  "neighbours": null,
+  "chosen_config": null,
+  "designed_config": "dependency",
+  "chosen_matches_designed": null,
+  "pre_selection_end": "arm_has_no_selection",
+  "created_at": "2026-09-26 17:42:35.204823+00:00"
+ },
+ {
+  "run_id": "eval-fallback-sem-eval-02-20260926T174056",
+  "phase": "eval",
+  "arm": "fallback",
+  "task_id": "sem-eval-02",
+  "family": "semantic_repetition",
+  "stop_reason": "verification_failed",
+  "verified_fix": false,
+  "attempts": 2,
+  "switched": true,
+  "configs_used": [
+   "caller",
+   "focused"
+  ],
+  "cost_usd": 0.0016543999999999999,
+  "input_tokens": 1011,
+  "output_tokens": 600,
+  "shared_attempt": {
+   "run_id": "eval-shared-sem-eval-02-20260926T174056",
+   "cost_usd": 0.0012533
+  },
+  "snapshot_id": null,
+  "switch_attempt": 1,
+  "triggers": [
+   {
+    "attempt_n": 1,
+    "trigger": "regression"
+   }
+  ],
+  "neighbours": null,
+  "chosen_config": "caller",
+  "designed_config": "dependency",
+  "chosen_matches_designed": false,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 17:41:57.380824+00:00"
+ },
+ {
+  "run_id": "eval-memory-sem-eval-02-20260926T174056",
+  "phase": "eval",
+  "arm": "memory",
+  "task_id": "sem-eval-02",
+  "family": "semantic_repetition",
+  "stop_reason": "solved",
+  "verified_fix": true,
+  "attempts": 2,
+  "switched": true,
+  "configs_used": [
+   "dependency",
+   "focused"
+  ],
+  "cost_usd": 0.00164678,
+  "input_tokens": 1807,
+  "output_tokens": 435,
+  "shared_attempt": {
+   "run_id": "eval-shared-sem-eval-02-20260926T174056",
+   "cost_usd": 0.0012533
+  },
+  "snapshot_id": "mem-v1",
+  "switch_attempt": 1,
+  "triggers": [
+   {
+    "attempt_n": 1,
+    "trigger": "regression"
+   }
+  ],
+  "neighbours": [
+   {
+    "rank": 1,
+    "checkpoint_id": "mem-v1-sem-dev-02",
+    "family": "semantic_repetition",
+    "fusion_score": 0.01639344262295082
+   },
+   {
+    "rank": 2,
+    "checkpoint_id": "mem-v1-sem-dev-01",
+    "family": "semantic_repetition",
+    "fusion_score": 0.016129032258064516
+   }
+  ],
+  "chosen_config": "dependency",
+  "designed_config": "dependency",
+  "chosen_matches_designed": true,
+  "pre_selection_end": null,
+  "created_at": "2026-09-26 17:41:59.023447+00:00"
+ }
+]

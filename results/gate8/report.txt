@@ -1,0 +1,90 @@
+runs: 60 from 5 repeats; stop reasons: {'budget_exhausted': 11, 'solved': 17, 'verification_failed': 32}
+
+=== arm x family: verified / total, cost ===
+arm          oscillation                       semantic_repetition               all
+plain_retry  0/10  $0.0175  (no fix)           0/10  $0.0472  (no fix)           0/20  $0.0647  (no fix)         
+fallback     4/10  $0.0153  ($0.0038/fix)      0/10  $0.0238  (no fix)           4/20  $0.0391  ($0.0098/fix)    
+memory       5/10  $0.0159  ($0.0032/fix)      8/10  $0.0207  ($0.0026/fix)      13/20  $0.0366  ($0.0028/fix)   
+
+=== per-task verified (5 repeats) ===
+  osc-eval-01  plain_retry=0/5  fallback=1/5  memory=2/5
+  osc-eval-02  plain_retry=0/5  fallback=3/5  memory=3/5
+  sem-eval-01  plain_retry=0/5  fallback=0/5  memory=5/5
+  sem-eval-02  plain_retry=0/5  fallback=0/5  memory=3/5
+
+=== per-run log (task, repeat, arm) ===
+task         rep arm          stop                  ok    sw@  top-1 fam  top-2 fam  sem1   sem2   margin  chosen/designed        pre-selection end
+osc-eval-01  1   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-01  1   fallback     verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-01  1   memory       solved                True  2    same       CROSS      0.854  0.827  +0.027  caller/caller          -
+osc-eval-01  2   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-01  2   fallback     verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-01  2   memory       verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-01  3   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-01  3   fallback     solved                True  2    -          -          -      -      -       caller/caller          -
+osc-eval-01  3   memory       verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-01  4   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-01  4   fallback     verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-01  4   memory       solved                True  2    same       CROSS      0.791  0.728  +0.062  caller/caller          -
+osc-eval-01  5   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-01  5   fallback     verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-01  5   memory       verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-02  1   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-02  1   fallback     solved                True  1    -          -          -      -      -       caller/caller          -
+osc-eval-02  1   memory       solved                True  1    same       CROSS      0.816  0.791  +0.025  caller/caller          -
+osc-eval-02  2   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-02  2   fallback     solved                True  1    -          -          -      -      -       caller/caller          -
+osc-eval-02  2   memory       solved                True  1    same       CROSS      0.809  0.795  +0.014  caller/caller          -
+osc-eval-02  3   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-02  3   fallback     verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-02  3   memory       verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-02  4   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-02  4   fallback     solved                True  1    -          -          -      -      -       caller/caller          -
+osc-eval-02  4   memory       solved                True  1    same       CROSS      0.780  0.736  +0.044  caller/caller          -
+osc-eval-02  5   plain_retry  verification_failed   False -    -          -          -      -      -       -/caller               arm_has_no_selection
+osc-eval-02  5   fallback     verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+osc-eval-02  5   memory       verification_failed   False -    -          -          -      -      -       -/caller               diagnostics_passed_before_switch (verification_failed)
+sem-eval-01  1   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-01  1   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-01  1   memory       solved                True  1    same       CROSS      0.762  0.720  +0.041  dependency/dependency  -
+sem-eval-01  2   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-01  2   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-01  2   memory       solved                True  1    same       CROSS      0.817  0.784  +0.034  dependency/dependency  -
+sem-eval-01  3   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-01  3   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-01  3   memory       solved                True  1    same       CROSS      0.765  0.736  +0.028  dependency/dependency  -
+sem-eval-01  4   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-01  4   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-01  4   memory       solved                True  1    same       CROSS      0.843  0.800  +0.044  dependency/dependency  -
+sem-eval-01  5   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-01  5   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-01  5   memory       solved                True  1    same       CROSS      0.777  0.739  +0.038  dependency/dependency  -
+sem-eval-02  1   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-02  1   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-02  1   memory       solved                True  1    same       CROSS      0.729  0.726  +0.003  dependency/dependency  -
+sem-eval-02  2   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-02  2   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-02  2   memory       verification_failed   False 1    CROSS      same       0.791  0.744  +0.047  caller/dependency      -
+sem-eval-02  3   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-02  3   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-02  3   memory       solved                True  1    same       CROSS      0.735  0.722  +0.013  dependency/dependency  -
+sem-eval-02  4   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-02  4   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-02  4   memory       solved                True  1    same       same       0.795  0.737  +0.058  dependency/dependency  -
+sem-eval-02  5   plain_retry  budget_exhausted      False -    -          -          -      -      -       -/dependency           arm_has_no_selection
+sem-eval-02  5   fallback     verification_failed   False 1    -          -          -      -      -       caller/dependency      -
+sem-eval-02  5   memory       verification_failed   False 1    CROSS      same       0.821  0.761  +0.060  caller/dependency      -
+
+=== selection summary per arm x family (switching arms) ===
+  fallback  oscillation          switched 4/10 (at attempt: {1: 3, 2: 1}); chose designed 4/4; verified after switch 4/4; ended before selection 6 {'diagnostics_passed_before_switch': 6}
+  fallback  semantic_repetition  switched 10/10 (at attempt: {1: 10}); chose designed 0/10; verified after switch 0/10; ended before selection 0 {}
+  memory    oscillation          switched 5/10 (at attempt: {1: 3, 2: 2}); chose designed 5/5; verified after switch 5/5; ended before selection 5 {'diagnostics_passed_before_switch': 5}
+  memory    semantic_repetition  switched 10/10 (at attempt: {1: 10}); chose designed 8/10; verified after switch 8/10; ended before selection 0 {}
+
+=== memory on family B: same-family vs cross-family top-1 ===
+  same-family top-1              runs 8   chose dependency 8  verified 8  margins [0.041, 0.003, 0.034, 0.028, 0.013, 0.044, 0.058, 0.038]
+  cross-family top-1             runs 2   chose dependency 0  verified 0  margins [0.047, 0.06]
+  no retrieval (never switched)  runs 0   chose dependency 0  verified 0  margins []
+
+=== memory on family A: top-1 family ===
+  same-family top-1 5/5; margins [0.027, 0.025, 0.014, 0.062, 0.044]

@@ -1,0 +1,93 @@
+[suite] eval: 4 tasks x 3 arms = 12 runs
+  shared attempt 1 [osc-eval-01]: edited=['scale'] failing=1 regressed=0 solved=False $0.0005
+  shared attempt 1 [osc-eval-02]: edited=['haversine_km'] failing=1 regressed=1 solved=False $0.0014
+  shared attempt 1 [sem-eval-01]: edited=['quote'] failing=3 regressed=1 solved=False $0.0025
+  shared attempt 1 [sem-eval-02]: edited=['overdue_fee'] failing=4 regressed=2 solved=False $0.0013
+
+[sem-eval-02 / fallback]
+  attempt 1 [focused] failing=4 regressed=2 edited=['overdue_fee'] rolled back trigger=regression
+  -> switch focused -> caller (fallback); reset to seed, hash verified
+  attempt 2 [caller] diagnostics pass -> verification_failed
+  => verification_failed
+
+[osc-eval-02 / fallback]
+  attempt 1 [focused] failing=1 regressed=1 edited=['haversine_km'] rolled back trigger=regression
+  -> switch focused -> caller (fallback); reset to seed, hash verified
+  attempt 2 [caller] diagnostics pass -> solved
+  => solved
+
+[sem-eval-02 / memory]
+  attempt 1 [focused] failing=4 regressed=2 edited=['overdue_fee'] rolled back trigger=regression
+  -> switch focused -> dependency (memory); reset to seed, hash verified
+  attempt 2 [dependency] diagnostics pass -> solved
+  => solved
+
+[sem-eval-01 / memory]
+  attempt 1 [focused] failing=3 regressed=1 edited=['quote'] rolled back trigger=regression
+  -> switch focused -> dependency (memory); reset to seed, hash verified
+  attempt 2 [dependency] diagnostics pass -> solved
+  => solved
+
+[osc-eval-02 / plain_retry]
+  attempt 1 [focused] failing=1 regressed=1 edited=['haversine_km']
+  attempt 2 [focused] diagnostics pass -> verification_failed
+  => verification_failed
+
+[osc-eval-01 / plain_retry]
+  attempt 1 [focused] failing=1 regressed=0 edited=['scale']
+  attempt 2 [focused] diagnostics pass -> verification_failed
+  => verification_failed
+
+[osc-eval-01 / fallback]
+  attempt 1 [focused] failing=1 regressed=0 edited=['scale']
+  attempt 2 [focused] diagnostics pass -> verification_failed
+  => verification_failed
+
+[osc-eval-01 / memory]
+  attempt 1 [focused] failing=1 regressed=0 edited=['scale']
+  attempt 2 [focused] failing=1 regressed=0 edited=['scale'] trigger=same_strategy
+  -> switch focused -> caller (memory); reset to seed, hash verified
+  attempt 3 [caller] diagnostics pass -> solved
+  => solved
+
+[osc-eval-02 / memory]
+  attempt 1 [focused] failing=1 regressed=1 edited=['haversine_km'] rolled back trigger=regression
+  -> switch focused -> caller (memory); reset to seed, hash verified
+  attempt 2 [caller] diagnostics pass -> solved
+  => solved
+
+[sem-eval-01 / fallback]
+  attempt 1 [focused] failing=3 regressed=1 edited=['quote'] rolled back trigger=regression
+  -> switch focused -> caller (fallback); reset to seed, hash verified
+  attempt 2 [caller] diagnostics pass -> verification_failed
+  => verification_failed
+
+[sem-eval-02 / plain_retry]
+  attempt 1 [focused] failing=4 regressed=2 edited=['overdue_fee']
+  attempt 2 [focused] failing=2 regressed=0 edited=['overdue_fee']
+  attempt 3 [focused] failing=2 regressed=0 edited=['overdue_fee']
+  => budget_exhausted
+
+[sem-eval-01 / plain_retry]
+  attempt 1 [focused] failing=3 regressed=1 edited=['quote']
+  attempt 2 [focused] failing=4 regressed=1 edited=['quote']
+  attempt 3 [focused] failing=4 regressed=0 edited=['quote']
+  => budget_exhausted
+
+task         arm          stop_reason           ok    att switch@ chosen/designed        top-1 (score)                      top-2 (score)                      pre-selection end                    cost
+osc-eval-01  plain_retry  verification_failed   False 2   -       -/caller               -                                  -                                  arm_has_no_selection                 $0.0013
+osc-eval-01  fallback     verification_failed   False 2   -       -/caller               -                                  -                                  diagnostics_passed_before_switch (verification_failed) $0.0013
+osc-eval-01  memory       solved                True  3   2       caller/caller          osc:osc-dev-01 (0.0164)            sem:sem-dev-02 (0.0161)            -                                    $0.0015
+osc-eval-02  plain_retry  verification_failed   False 2   -       -/caller               -                                  -                                  arm_has_no_selection                 $0.0022
+osc-eval-02  fallback     solved                True  2   1       caller/caller          -                                  -                                  -                                    $0.0019
+osc-eval-02  memory       solved                True  2   1       caller/caller          osc:osc-dev-01 (0.0164)            sem:sem-dev-02 (0.0161)            -                                    $0.0027
+sem-eval-01  plain_retry  budget_exhausted      False 3   -       -/dependency           -                                  -                                  arm_has_no_selection                 $0.0071
+sem-eval-01  fallback     verification_failed   False 2   1       caller/dependency      -                                  -                                  -                                    $0.0039
+sem-eval-01  memory       solved                True  2   1       dependency/dependency  sem:sem-dev-02 (0.0164)            osc:osc-dev-01 (0.0161)            -                                    $0.0031
+sem-eval-02  plain_retry  budget_exhausted      False 3   -       -/dependency           -                                  -                                  arm_has_no_selection                 $0.0039
+sem-eval-02  fallback     verification_failed   False 2   1       caller/dependency      -                                  -                                  -                                    $0.0017
+sem-eval-02  memory       solved                True  2   1       dependency/dependency  sem:sem-dev-02 (0.0164)            sem:sem-dev-01 (0.0161)            -                                    $0.0016
+
+  plain_retry  verified 0/4  total $0.0145  cost/verified fix n/a
+  fallback     verified 1/4  total $0.0088  cost/verified fix $0.0088
+  memory       verified 4/4  total $0.0089  cost/verified fix $0.0022
