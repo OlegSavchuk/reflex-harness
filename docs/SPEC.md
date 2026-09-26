@@ -116,8 +116,9 @@ After every attempt:
 6. **Exact repeat?** Same state hash as an earlier attempt, or same patch fingerprint
    against the same parent state → trigger = `exact_repeat` → intervene (skip Jev).
 7. **Progress that moved?** Failing set is a strict subset of the previous failing set (same
-   suite, no missing/skipped tests) **and** the patch edited a function the previous attempt
-   did not edit → continue without asking Jev. Real progress usually moves.
+   suite, no missing/skipped tests) **and** the edit lies outside the focal region (same region
+   as step 9) → continue without the same-strategy check. Real progress usually moves; a
+   shrinking hack moved into a helper the agent just created does not count as moved.
    Shrinkage alone no longer short-circuits: a local hack in the same function can shrink the
    failing set (sem-dev-02: quarter-hour rounding took 3 failures to 1) while repeating the
    same strategy. That case goes to Jev with `shrank: true` in the packet.
@@ -125,12 +126,13 @@ After every attempt:
 8. **Too early for Jev?** Already switched, or fewer than 2 completed attempts under the
    current config → continue.
 9. **Same-strategy check (rule; replaced Jev at Gate 5).** Focal region = the pinned focal
-   function + any function the agent created during this run (not in the seed). If both of the
-   last two attempts' edits stay inside the region and failures remain → trigger =
-   `same_strategy` → intervene. Else continue. Module-level lines of the focal file are
-   ignored; module-level edits in other files are outside the region. (Smoke run: the agent
-   moved its hack into a helper it had just created, which the earlier "same focal function"
-   rule missed.) Edits to a *seed* sibling of the focal are outside the region.
+   function + seed functions the failing tests call directly (by name or as a method; from the
+   seed baseline) + any function the agent created during this run. Built once per run
+   (`context.focal_region`). If both of the last two attempts' edits stay inside the region and
+   failures remain → trigger = `same_strategy` → intervene. Else continue. Module-level lines
+   of the focal file are ignored; module-level edits in other files are outside the region.
+   (Smoke runs: the agent moved its hack into helpers it created, and also rewrote a seed
+   sibling the failing tests call — both missed by the earlier "same focal function" rule.)
    (`controller.same_strategy`.) Jev was the plan here — packet with `failing_before`,
    `failing_after`, `shrank` — but it could not separate same-function shrinking hacks from
    genuine refinements (Gate 5, §10). Disclosed. A false positive costs one early switch to a
@@ -281,6 +283,18 @@ For each dev task:
    `error_symbols` come from the seed baseline only: focal name, failing test names,
    exception types — never from an agent's edits.
 5. Publish the checkpoint only after all four finish. Infra error = missing evidence, not failure.
+
+**Build policy: a diagnostics pass ends the history.** If `focused` passes diagnostics during a
+build, the checkpoint's history is the failed attempts before it (none → no checkpoint). The
+build never consults protected results to decide what counts as a failed attempt, because
+protected results must never feed the loop; the eval loop likewise stops at a diagnostics pass.
+
+**Narrator-only changes re-narrate; they never re-run attempts.** A change to the narrator
+prompt or to how `error_symbols` are built regenerates `failure_narrative` / `error_symbols` of
+the frozen snapshot in place (`scripts/renarrate_snapshot.py`: narrator calls only; the fix
+diff comes from each checkpoint's own verified trial, re-verified first; waits until the new
+text is embedded and indexed). Attempts, `prior_attempts` and outcomes stay untouched, so the
+evidence is not re-sampled.
 6. Insert; poll until searchable (embeddings are async).
 7. Freeze: `snapshot_id = "mem-v1"`. Evaluation never writes to `checkpoints`.
 
@@ -530,12 +544,35 @@ family-B eval tasks**. Gate 8 is a **feasibility result, not proof that memory b
 fallback.** Cross-family neighbour risk: with 2 checkpoints per family, the #2 neighbour can
 come from the other family (seen at Gates 1 and 7), diluting the evidence behind a choice.
 
-**Leave-one-out preview (dev only, `scripts/loo_retrieval.py`).** Eval-style queries on the 4
+**Leave-one-out preview, first run (dev only, `scripts/loo_retrieval.py`).** Eval-style queries on the 4
 dev tasks with their own checkpoint excluded: top-1 same family **3/4**; top-2 mixed in every
 case. Family A separates clearly (semantic 0.83 vs ≤ 0.77); family B barely or not at all
 (margins 0.01–0.03); sem-dev-02's query ("a shared aggregation function… reused by several
 functions") retrieved two family-A checkpoints. LOO leaves one same-family checkpoint per
 query; eval has two.
+
+### 13.4 Gate 8 predictions (written before any eval run)
+
+- **Family A (oscillation): memory ≈ fallback.** Both switch to `caller` when a trigger fires
+  (fallback by registry order, memory by evidence). Memory can misroute only if a family-A
+  query's top-1 neighbour is family B (final LOO: osc-dev-01's top-1 was family B by 0.001).
+- **Family B (semantic repetition): memory > fallback only when the switch happens by attempt 2
+  and top-1 is same-family.** Fallback's first switch is `caller`, which cannot see the helper.
+  A switch at attempt 3 leaves no budget; a cross-family top-1 sends memory to `caller` too.
+- **Runs that end before selection can act are identical across arms**, e.g. a hack that passes
+  diagnostics before any switch (osc-dev-01 did this in every dev smoke run). They count, and
+  are reported as such.
+- **N=2 checkpoints per family, 2 eval tasks per family. Gate 8 is a feasibility result, not
+  proof that memory beats fallback.**
+- Dev smoke reference (self-retrieval, plumbing only — not a prediction): plain_retry 0/4,
+  fallback 1/4, memory 3/4.
+
+**Logged on every eval run (`runs`).** `switch_attempt` (or null = never) and `triggers`;
+`neighbours` = top-1/top-2 checkpoint, family and fusion score (memory arm; other arms do not
+retrieve, so null); `chosen_config` vs `designed_config` and `chosen_matches_designed`;
+`pre_selection_end` = why selection never acted (`diagnostics_passed_before_switch (...)`,
+`no_trigger`, `trigger_at_final_attempt`, `arm_has_no_selection` for plain_retry), null when it
+acted. Attempt 1 is shared across arms (`shared_attempt`).
 
 ---
 
@@ -682,4 +719,10 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | ~14:05 | Attempt 1 shared across arms (generated once per task, replayed; cost attributed to every arm) | Arms got different attempt-1 behaviour on the same task (osc-dev-01: fallback regressed and switched, memory hacked diagnostics and stopped), so arm differences reflected sampling before any selection happened |
 | ~14:10 | Static check extended to test-context sniffing (PYTEST env, os.environ, test-module imports, sys.modules/argv, dynamic import, test-name literals); prompt summaries no longer end in ".." | Environment sniffing passes every protected test (they run under pytest); audit: 2 such hacks caught by the static check only, 0 holes |
 | ~14:20 | **FREEZE (pre-Gate 8, supersedes the ~13:25 freeze): code `37bf092` + mem-v1 sha256 `84cbf2b11c664bc373f73b8c36c80b99bbb0b2a8f392fa4689ef61b964b63619`** (unchanged; 4 checkpoints) | Tie-break by rank, focal-region rule, shared attempt 1, test-context static check. Dev smoke (self-retrieval, plumbing only): plain_retry 0/4, fallback 1/4, memory 2/4 |
+| ~14:40 | Focal region adds seed functions the failing tests call directly; step 7 "moved" = edit outside the focal region | Smoke: sem-dev-01's shared attempt 1 also rewrote a seed sibling (`pass_rate`) the failing tests call, so the region rule fired only at attempt 3; a shrinking hack moved into a new helper would have counted as "moved" |
+| ~14:45 | Narrator: never mention whether a fix is known; built-in exception names stoplisted from `error_symbols` (both memory and query) | Eval-style queries said "no verified fix is provided"; exception names (AssertionError in almost every task) only added cross-family lexical noise |
+| ~14:50 | Build policy: a diagnostics pass ends a build's history (failed attempts before it) | A rebuild lost osc-dev-01's checkpoint because `focused` hacked diagnostics at attempt 2; protected results must never decide what counts as failed |
+| ~14:55 | mem-v1 restored from 84cbf2b1 (hash re-verified) and **re-narrated in place** (narrator calls only; evidence untouched); the 3-checkpoint rebuild ec6fa15b archived as superseded | The build never runs the ladder, so the region/step-7 changes cannot alter trial outcomes; only narratives and symbols changed. New content hash `c701ea5e…` |
+| ~15:00 | Per-run Gate 8 logging (`switch_attempt`, `triggers`, `neighbours`, chosen vs designed config, `pre_selection_end`) and §13.4 predictions | Written before any eval run so results are read against stated expectations |
+| ~15:00 | Final leave-one-out (report only, no tuning): top-1 same family 3/4 (the miss moved from sem-dev-02 to osc-dev-01, margin 0.001); lexical branch matched nothing after the stoplist | Queries are regenerated by the narrator on each run, so LOO varies run to run at these margins |
 

@@ -1,6 +1,7 @@
 """Gate 6: build development memory (SPEC §9.3) into a frozen snapshot.
 
-Per dev task: two `focused` attempts from the seed (rollback on regression), then reset to the
+Per dev task: up to two `focused` attempts from the seed (rollback on regression; a diagnostics
+pass ends the history, which is then the failed attempts before it), then reset to the
 seed (same reset + seed-hash assert as a strategy switch) -> fork 4 -> one trial per config,
 concurrently, from the seed, with identical prior_attempts and the reset line; each outcome
 records solved and verified. The narrative is built from the task (seed code, seed failing
@@ -63,7 +64,13 @@ def build_checkpoint(task_id, snapshot, stamp):
             if a.infra_error:
                 return {"task_id": task_id, "error": a.error}
             if a.solved:
-                return {"task_id": task_id, "error": f"focused solved at attempt {n}: no failure state"}
+                # Build policy (SPEC §9.3): a diagnostics pass ends the history; the checkpoint's
+                # history is the failed attempts before it. Protected results never feed the loop,
+                # so a hack that passes diagnostics is treated exactly as the eval loop sees it.
+                if not prior:
+                    return {"task_id": task_id, "error": "focused passed diagnostics at attempt 1: "
+                                                          "no failed attempt to learn from"}
+                break
             touched |= {e.split("::")[0] for e in a.edited}
             prior.append(summarize(n, a, rolled))
             if rolled:

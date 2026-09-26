@@ -6,33 +6,17 @@ not separate same-function shrinking hacks from genuine refinements; disclosed).
 from __future__ import annotations
 
 
-def _functions(edited: list[str]) -> set[str]:
-    return {e for e in edited if not e.endswith("::<module>")}
+def same_strategy(prev_edited: list[str], cur_edited: list[str], region,
+                  failing_after: list[str]) -> bool:
+    """Ladder step 9: both attempts' edits stay inside the focal region and failures remain."""
+    return bool(failing_after) and all(region.inside(e) for e in [*prev_edited, *cur_edited])
 
 
-def same_strategy(prev_edited: list[str], cur_edited: list[str], focal: str,
-                  failing_after: list[str], seed_functions: set[str]) -> bool:
-    """Both attempts' edits stay inside the focal region and failures remain.
-
-    Focal region = the pinned focal function + any function the agent created during this
-    run (not in the seed). Module-level lines of the focal file are ignored; module-level
-    edits anywhere else are outside the region. Entries are "path::name"."""
-    focal_path = focal.split("::")[0]
-
-    def inside(e: str) -> bool:
-        if e.endswith("::<module>"):
-            return e.split("::")[0] == focal_path
-        return e == focal or e not in seed_functions
-
-    return bool(failing_after) and all(inside(e) for e in [*prev_edited, *cur_edited])
-
-
-def progress_moved(prev_edited: list[str], cur_edited: list[str], failing_before: list[str],
-                   failing_after: list[str]) -> bool:
-    """Ladder step 7: strict-subset shrinkage AND the patch edited a function the previous
-    attempt did not. Only then continue without the same-strategy check."""
-    return (set(failing_after) < set(failing_before)
-            and bool(_functions(cur_edited) - _functions(prev_edited)))
+def progress_moved(cur_edited: list[str], failing_before: list[str], failing_after: list[str],
+                   region) -> bool:
+    """Ladder step 7: strict-subset shrinkage AND the edit lies outside the focal region.
+    Only then continue without the same-strategy check."""
+    return set(failing_after) < set(failing_before) and any(not region.inside(e) for e in cur_edited)
 
 
 # ---------- one attempt under one config (shared by memory building and the loop) ----------
@@ -179,7 +163,7 @@ from datetime import datetime, timezone  # noqa: E402
 
 from . import config as _config  # noqa: E402
 from . import prices  # noqa: E402
-from .context import pin_focal, seed_function_keys  # noqa: E402
+from .context import focal_region, pin_focal  # noqa: E402
 from .narrator import forbidden_tokens, narrate_task, task_symbols  # noqa: E402
 from .pipelines import retrieval_pipeline, selection_pipeline  # noqa: E402
 from .runner import DirtyTreeError, load_task, reset_to_seed, tree_hash  # noqa: E402
@@ -269,6 +253,30 @@ def shared_first_attempt(task_id: str, *, phase: str, run_id: str,
         runner.cleanup(ws)
 
 
+def selection_log(arm: str, family: str, stop: str | None, switch_at: int | None,
+                  triggers: list, row: dict | None, last_n: int) -> dict:
+    """Per-run fields for Gate 8 reporting (SPEC §13.4)."""
+    designed = _config.DESIGNED_CONFIG.get(family)
+    chosen = (row or {}).get("chosen_config_id")
+    if arm == "plain_retry":
+        pre = "arm_has_no_selection"
+    elif switch_at is not None or stop == "configurations_exhausted":
+        pre = None
+    elif stop in ("solved", "verification_failed"):
+        pre = f"diagnostics_passed_before_switch ({stop})"
+    elif stop in ("budget_exhausted", "rolled_back_budget_exhausted"):
+        pre = "trigger_at_final_attempt" if any(t["attempt_n"] == last_n for t in triggers) else "no_trigger"
+    else:
+        pre = stop
+    neighbours = [{"rank": i, "checkpoint_id": r["checkpoint_id"], "family": r.get("family"),
+                   "fusion_score": r.get("fusion_score")}
+                  for i, r in enumerate((row or {}).get("retrieved") or [], 1)] or None
+    return {"switch_attempt": switch_at, "triggers": triggers, "neighbours": neighbours,
+            "chosen_config": chosen, "designed_config": designed,
+            "chosen_matches_designed": (chosen == designed) if chosen else None,
+            "pre_selection_end": pre}
+
+
 def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAPSHOT_ID,
              registry: str = _config.REGISTRY, protocol: str = _config.PROTOCOL,
              run_id: str | None = None, first_attempt: AttemptResult | None = None,
@@ -282,11 +290,11 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
     configs = {c["config_id"]: c for c in db()["configs"].find({"registry": registry}, {"_id": 0})}
     ws = runner.prepare(task)
     stop, switched, in_cfg, n, reset_note, dirty = None, False, 0, 0, False, None
+    switch_at, chosen_row, triggers = None, None, []
     try:
         base = cur = runner.run(ws, task.diag_cmd, TEST_TIMEOUT_S)
         pinned = pin_focal(ws, cur)
-        focal_key = f"{pinned.path}::{pinned.function}"
-        seed_fns = seed_function_keys(ws)
+        region = focal_region(ws, pinned, base)
         cfg = configs["focused"]
         prior, cfg_history = [], []
         seen_states, seen_fps = set(), set()
@@ -323,14 +331,16 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                 prev = cfg_history[-1] if cfg_history else None
                 failing_after = a.report.failed + a.report.collection_errors
                 if (trigger is None and prev is not None                   # 7. progress that moved
-                        and not progress_moved(prev.edited, a.edited, parent.failed, failing_after)
+                        and not progress_moved(a.edited, parent.failed, failing_after, region)
                         and not switched and in_cfg >= 2                   # 8. too early
-                        and same_strategy(prev.edited, a.edited, focal_key, failing_after, seed_fns)):
+                        and same_strategy(prev.edited, a.edited, region, failing_after)):
                     trigger = "same_strategy"                              # 9. same strategy
             else:
                 cur = a.report
             record(a, run_id=run_id, phase=phase, mode=arm, task_id=task_id, attempt_n=n,
                    rolled_back=rolled, trigger=trigger)
+            if trigger:
+                triggers.append({"attempt_n": n, "trigger": trigger})
             cfg_history.append(a)
             prior.append(summarize(n, a, rolled))
             log(f"  attempt {n} [{cfg['config_id']}] failing={len(a.report.failed)} "
@@ -346,7 +356,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                 row = select_next(arm, task=task, run_id=run_id, phase=phase, attempt_n=n,  # 5.
                                   trigger=trigger, configs=configs, pinned=pinned, base=base,
                                   snapshot=snapshot, registry=registry, protocol=protocol)
-                chosen = row["chosen_config_id"]
+                chosen, chosen_row = row["chosen_config_id"], row
                 if chosen is None:
                     db()["decisions"].insert_one({**row, "created_at": datetime.now(timezone.utc)})
                     stop = "configurations_exhausted"
@@ -358,7 +368,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                     break
                 log(f"  -> switch {cfg['config_id']} -> {chosen} ({arm}); reset to seed, hash verified")
                 cfg, switched, in_cfg, cfg_history = configs[chosen], True, 0, []
-                cur, reset_note = base, True
+                cur, reset_note, switch_at = base, True, n
     finally:
         runner.cleanup(ws)
     # all calls of the run count, including abandoned attempts and the narrator
@@ -373,6 +383,7 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
            "shared_attempt": ({"run_id": shared_run_id, "cost_usd": first_attempt.cost_usd}
                               if first_attempt else None),
            "snapshot_id": snapshot if arm == "memory" else None,
+           **selection_log(arm, task.family, stop, switch_at, triggers, chosen_row, n),
            "created_at": datetime.now(timezone.utc)}
     db()["runs"].insert_one(dict(doc))
     if dirty:

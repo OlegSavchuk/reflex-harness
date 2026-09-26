@@ -21,7 +21,10 @@ selection pipeline, Jev contract, task suite, evaluation protocol, build gates.
 - Verification = protected tests + the static gaming-pattern check on the final diff
   (`runner.static_violations`: caller/stack inspection and test-context sniffing).
 - Suite runs (`scripts/run_suite.py`) generate attempt 1 once per task and replay it in every
-  arm; never give arms independently sampled first attempts. Run `scripts/validate_tasks.py` and `scripts/audit_gaming.py`
+  arm; never give arms independently sampled first attempts.
+- A narrator-only change (prompt, symbol construction) re-narrates the frozen snapshot with
+  `scripts/renarrate_snapshot.py`; never rebuild memory (that re-samples the evidence).
+  Archive, don't delete: `scripts/archive_snapshot.py --status invalid|superseded`. Run `scripts/validate_tasks.py` and `scripts/audit_gaming.py`
   after any change to a task.
 - Use the MongoDB skills in `.claude/skills/` for query writing, search/vector
   indexes, schema questions and connection setup. The MCP server is read-only;
@@ -163,7 +166,10 @@ table the selection pipeline returns: per-config support/solves/regressions/mean
 `verified_fix` (stop_reason == "solved"), `attempts`, `switched`, `configs_used`, `cost_usd`,
 `input_tokens`, `output_tokens` (sums of the run's `calls` rows, abandoned attempts included),
 `shared_attempt` (`{run_id, cost_usd}` of the attempt 1 replayed in every arm; its cost is
-included in `cost_usd`), `snapshot_id` (memory arm), `created_at`.
+included in `cost_usd`), `snapshot_id` (memory arm), and the Gate 8 fields (SPEC §13.4):
+`switch_attempt`, `triggers`, `neighbours` (top-1/top-2 `{rank, checkpoint_id, family,
+fusion_score}`, memory arm only), `chosen_config`, `designed_config`, `chosen_matches_designed`,
+`pre_selection_end`; `created_at`.
 
 ### Collection: `calls` — cost ledger, one row per external call
 

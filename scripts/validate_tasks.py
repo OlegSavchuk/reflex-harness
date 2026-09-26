@@ -22,7 +22,7 @@ from reflex_harness.runner import TASKS_DIR, LocalRunner, load_task  # noqa: E40
 
 TIMEOUT_S = 60
 CFG = {c["config_id"]: c for c in CONFIGS_R1}
-WINNER = {"oscillation": "caller", "semantic_repetition": "dependency"}
+from reflex_harness.config import DESIGNED_CONFIG as WINNER  # noqa: E402
 
 
 def validate(runner, task_id):

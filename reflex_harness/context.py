@@ -342,3 +342,51 @@ def edited_functions(before: dict[str, str], after: dict[str, str]) -> list[str]
         b, a = _def_sources(before.get(path, ""), path), _def_sources(after.get(path, ""), path)
         changed |= {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
     return sorted(changed)
+
+
+# ---------- focal region (ladder steps 7 and 9) ----------
+
+@dataclass(frozen=True)
+class FocalRegion:
+    """Pinned focal + seed functions the failing tests call directly + (implicitly) any
+    function the agent creates during the run. Module-level lines of the focal file are
+    ignored; module-level edits in other files are outside. Entries are "path::name"."""
+    focal: str
+    fixed: frozenset          # focal + test-called seed functions
+    seed_functions: frozenset
+
+    def inside(self, edited: str) -> bool:
+        if edited.endswith("::<module>"):
+            return edited.split("::")[0] == self.focal.split("::")[0]
+        return edited in self.fixed or edited not in self.seed_functions
+
+
+def test_called_functions(ws: Workspace, failing: list[str], seed_keys: set[str]) -> set[str]:
+    """Seed functions called directly (by name or as a method) inside the failing tests' bodies."""
+    by_name: dict[str, set[str]] = {}
+    for k in seed_keys:
+        by_name.setdefault(k.split("::")[-1], set()).add(k)
+    out = set()
+    for nodeid in failing:
+        path, _, rest = nodeid.partition("::")
+        name = rest.split("::")[-1].split("[")[0]
+        src = ws.task.repo / path
+        if not src.is_file():
+            continue
+        tree = ast.parse(src.read_text())
+        fn = next((n for n in ast.walk(tree)
+                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name), None)
+        for node in ast.walk(fn) if fn else []:
+            if isinstance(node, ast.Call):
+                f = node.func
+                called = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else None
+                out |= by_name.get(called, set())
+    return out
+
+
+def focal_region(ws: Workspace, pinned: PinnedFocal, baseline: TestReport) -> FocalRegion:
+    """Built once per run from the seed baseline, like the pinned focal."""
+    seed = seed_function_keys(ws)
+    focal = f"{pinned.path}::{pinned.function}"
+    return FocalRegion(focal=focal, fixed=frozenset({focal} | test_called_functions(ws, baseline.failed, seed)),
+                       seed_functions=frozenset(seed))

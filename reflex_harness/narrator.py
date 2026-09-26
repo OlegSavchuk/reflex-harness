@@ -8,6 +8,7 @@ verified fix), never from an agent's attempts. The call runs validate_narrative 
 retries once with the violations.
 """
 import ast
+import builtins
 import json
 import re
 from pathlib import Path, PurePosixPath
@@ -62,7 +63,8 @@ NARRATOR_SYSTEM = (
     "inside the shared function for one caller only, or wrong values with no error), and, if a "
     "verified fix is given, where the defect actually was relative to the failing function (for "
     "example in one of its callers, or in a helper it depends on). Describe the original code "
-    "only, never any attempt to fix it. Do not include identifiers, file, module or package "
+    "only, never any attempt to fix it. Never mention whether a fix is known, given, missing or "
+    "unavailable. Do not include identifiers, file, module or package "
     "names, paths, test names, exception names, literal values, or any noun about what the "
     'software does. Reply with JSON only: {"narrative": "<2-3 sentences>"}.'
 )
@@ -83,15 +85,25 @@ def _crash_lines(report) -> dict[str, str]:
     return out
 
 
+# Built-in exception class names carry no task signal and match across families
+# (AssertionError is in almost every failure), so they never enter the lexical field.
+BUILTIN_EXCEPTIONS = frozenset(n for n in dir(builtins) if isinstance(getattr(builtins, n), type)
+                               and issubclass(getattr(builtins, n), BaseException))
+
+
 def task_symbols(focal_name: str, baseline) -> str:
-    """Lexical field from the task itself: focal name, seed failing tests, exception types.
-    Same construction for memory and eval; never from an agent's edits."""
+    """Lexical field from the task itself: focal name, seed failing tests, non-builtin
+    exception types. Same construction for memory and eval; never from an agent's edits."""
+    return " ".join(t for t in _raw_symbols(focal_name, baseline) if t not in BUILTIN_EXCEPTIONS)
+
+
+def _raw_symbols(focal_name: str, baseline) -> list[str]:
     syms = [focal_name] + [_short(n) for n in baseline.failed]
     for line in _crash_lines(baseline).values():
         m = re.match(r"([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b", line)
         if m:
             syms.append(m.group(1))
-    return " ".join(dict.fromkeys(syms))
+    return list(dict.fromkeys(syms))
 
 
 def narrate_task(seed_files: dict[str, str], baseline, focal_name: str, fix_diff: str | None,

@@ -56,10 +56,16 @@ def main():
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         docs = list(pool.map(one, jobs))
 
-    print(f"\n{'task':<12} {'arm':<12} {'stop_reason':<30} {'verified':<8} {'att':<4} {'configs':<28} cost")
+    print(f"\n{'task':<12} {'arm':<12} {'stop_reason':<21} {'ok':<5} {'att':<3} {'switch@':<7} "
+          f"{'chosen/designed':<22} {'top-1 (score)':<34} {'top-2 (score)':<34} {'pre-selection end':<36} cost")
     for d in docs:
-        print(f"{d['task_id']:<12} {d['arm']:<12} {d['stop_reason']:<30} {str(d['verified_fix']):<8} "
-              f"{str(d['attempts']):<4} {','.join(d['configs_used']):<28} ${d['cost_usd']:.4f}")
+        nb = d.get("neighbours") or []
+        fmt = lambda x: f"{x['family'][:3]}:{x['checkpoint_id'].replace('mem-v1-', '')} ({x['fusion_score']:.4f})"  # noqa: E731
+        cd = f"{d.get('chosen_config') or '-'}/{d.get('designed_config') or '-'}"
+        print(f"{d['task_id']:<12} {d['arm']:<12} {str(d['stop_reason'])[:21]:<21} {str(d['verified_fix']):<5} "
+              f"{str(d['attempts']):<3} {str(d.get('switch_attempt') or '-'):<7} {cd:<22} "
+              f"{fmt(nb[0]) if nb else '-':<34} {fmt(nb[1]) if len(nb) > 1 else '-':<34} "
+              f"{str(d.get('pre_selection_end') or '-'):<36} ${d['cost_usd']:.4f}")
     print()
     for a in args.arms:
         ds = [d for d in docs if d["arm"] == a]

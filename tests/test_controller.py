@@ -1,5 +1,7 @@
-from reflex_harness.context import seed_function_keys
-from reflex_harness.controller import same_strategy
+import pytest
+
+from reflex_harness.context import focal_region, pin_focal, seed_function_keys
+from reflex_harness.controller import progress_moved, same_strategy
 from reflex_harness.runner import LocalRunner, load_task
 
 FOCAL = "gradebook/stats.py::class_average"
@@ -9,40 +11,54 @@ SEED = {"gradebook/stats.py::class_average", "gradebook/stats.py::pass_rate",
 FAILING = ["tests/test_stats.py::test_average_second_course"]
 
 
-def test_seed_function_keys_match_the_seed():
+@pytest.fixture(scope="module")
+def region():
     runner = LocalRunner()
     ws = runner.prepare(load_task("sem-dev-01"))
     try:
+        base = runner.run(ws, ws.task.diag_cmd, 60)
         assert seed_function_keys(ws) == SEED
+        yield focal_region(ws, pin_focal(ws, base), base)
     finally:
         runner.cleanup(ws)
 
 
-def test_hack_moved_into_a_new_helper_is_same_strategy():
-    # sem-dev-01 pattern: attempt 1 edits the focal and creates a helper; attempt 2 edits only the helper
-    prev = ["gradebook/stats.py::<module>", "gradebook/stats.py::_valid_scores", FOCAL]
-    cur = ["gradebook/stats.py::_valid_scores"]
-    assert same_strategy(prev, cur, FOCAL, FAILING, SEED)
-    assert same_strategy(cur, ["gradebook/stats.py::<module>", "gradebook/stats.py::_valid_scores"],
-                         FOCAL, FAILING, SEED)
+def test_region_is_focal_plus_seed_functions_the_failing_tests_call(region):
+    # failing tests: test_average_second_course (GradeBook, add, class_average), test_pass_rate (.., pass_rate)
+    assert region.fixed == {FOCAL, "gradebook/stats.py::pass_rate", "gradebook/models.py::add"}
+    assert not region.inside("gradebook/models.py::__init__")      # where the real fix is
+    assert region.inside("gradebook/stats.py::_brand_new_helper")   # agent-created
 
 
-def test_not_same_strategy_when_failures_clear():
-    assert not same_strategy([FOCAL], [FOCAL], FOCAL, [], SEED)
-
-
-def test_edit_outside_the_region_is_not_same_strategy():
-    # the real fix lives in another file's seed function
-    assert not same_strategy([FOCAL], ["gradebook/models.py::__init__"], FOCAL, FAILING, SEED)
-    # module-level edit in another file (e.g. a lookup table) is outside the region
-    assert not same_strategy([FOCAL], ["gradebook/models.py::<module>"], FOCAL, FAILING, SEED)
-
-
-def test_sibling_seed_function_is_outside_the_region():
-    # the actual sem-dev-01 smoke run: attempt 1 also rewrote pass_rate (a seed sibling)
-    prev = ["gradebook/stats.py::<module>", "gradebook/stats.py::_scores", FOCAL,
+def test_sem_dev_01_pattern_sibling_edit_is_same_strategy(region):
+    # shared attempt 1 rewrote class_average AND its seed sibling pass_rate and created a helper;
+    # attempt 2 moved the hack into more new helpers
+    prev = ["gradebook/stats.py::<module>", "gradebook/stats.py::_scores_for_course", FOCAL,
             "gradebook/stats.py::pass_rate"]
-    assert not same_strategy(prev, ["gradebook/stats.py::_scores"], FOCAL, FAILING, SEED)
+    cur = ["gradebook/stats.py::<module>", "gradebook/stats.py::_course_key",
+           "gradebook/stats.py::_scores_for_course"]
+    assert same_strategy(prev, cur, region, FAILING)
+
+
+def test_not_same_strategy_when_failures_clear(region):
+    assert not same_strategy([FOCAL], [FOCAL], region, [])
+
+
+def test_edit_outside_the_region_is_not_same_strategy(region):
+    assert not same_strategy([FOCAL], ["gradebook/models.py::__init__"], region, FAILING)
+    assert not same_strategy([FOCAL], ["gradebook/models.py::<module>"], region, FAILING)
+
+
+def test_step7_shrinking_hack_moved_into_a_new_helper_is_not_progress_that_moved(region):
+    before = FAILING + ["tests/test_stats.py::test_pass_rate"]
+    assert not progress_moved(["gradebook/stats.py::_fresh_helper"], before, FAILING, region)
+    assert not progress_moved([FOCAL, "gradebook/stats.py::pass_rate"], before, FAILING, region)
+
+
+def test_step7_shrinkage_outside_the_region_counts_as_moved(region):
+    before = FAILING + ["tests/test_stats.py::test_pass_rate"]
+    assert progress_moved(["gradebook/models.py::__init__"], before, FAILING, region)
+    assert not progress_moved(["gradebook/models.py::__init__"], FAILING, FAILING, region)  # no shrink
 
 
 def test_replay_reuses_the_shared_patch_without_a_model_call(monkeypatch):
@@ -71,3 +87,19 @@ def test_replay_reuses_the_shared_patch_without_a_model_call(monkeypatch):
         assert a.edited == ["billing/tax.py::apply_tax"] and a.regressed   # invoice tests break
     finally:
         runner.cleanup(ws)
+
+
+def test_selection_log_classifies_runs_where_selection_never_acted():
+    from reflex_harness.controller import selection_log
+    row = {"chosen_config_id": "dependency", "retrieved": [
+        {"checkpoint_id": "a", "family": "semantic_repetition", "fusion_score": 0.03},
+        {"checkpoint_id": "b", "family": "oscillation", "fusion_score": 0.02}]}
+    sw = selection_log("memory", "semantic_repetition", "solved", 2, [{"attempt_n": 2, "trigger": "same_strategy"}], row, 3)
+    assert sw["pre_selection_end"] is None and sw["chosen_matches_designed"] is True
+    assert [n["family"] for n in sw["neighbours"]] == ["semantic_repetition", "oscillation"]
+    assert selection_log("fallback", "oscillation", "verification_failed", None, [], None, 2)["pre_selection_end"] \
+        == "diagnostics_passed_before_switch (verification_failed)"
+    assert selection_log("memory", "oscillation", "budget_exhausted", None,
+                         [{"attempt_n": 3, "trigger": "same_strategy"}], None, 3)["pre_selection_end"] == "trigger_at_final_attempt"
+    assert selection_log("memory", "oscillation", "budget_exhausted", None, [], None, 3)["pre_selection_end"] == "no_trigger"
+    assert selection_log("plain_retry", "oscillation", "budget_exhausted", None, [], None, 3)["pre_selection_end"] == "arm_has_no_selection"

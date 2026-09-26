@@ -16,6 +16,9 @@ VECTOR_INDEX = "ckpt_vec"
 TEXT_INDEX = "ckpt_text"
 EMBED_MODEL = "voyage-4"
 
+# The config each family is designed around (SPEC §12); logged as `designed_config` per run.
+DESIGNED_CONFIG = {"oscillation": "caller", "semantic_repetition": "dependency"}
+
 # Registry r1: the four context configurations (SPEC §7). Seeded into `configs`.
 CONFIGS_R1 = [
     {"config_id": "focused", "order": 1,
