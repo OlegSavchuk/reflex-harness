@@ -1,7 +1,8 @@
 """Gate 6: build development memory (SPEC §9.3) into a frozen snapshot.
 
 Per dev task: up to two `focused` attempts from the seed (rollback on regression; a diagnostics
-pass ends the history, which is then the failed attempts before it), then reset to the
+pass ends the history, which is then the failed attempts before it, possibly none: a pass at
+attempt 1 gives an empty history, policy since 2026-09-26), then reset to the
 seed (same reset + seed-hash assert as a strategy switch) -> fork 4 -> one trial per config,
 concurrently, from the seed, with identical prior_attempts and the reset line; each outcome
 records solved and verified. The narrative is built from the task (seed code, seed failing
@@ -38,7 +39,7 @@ def trial(runner, ws, report, cfg, pinned, prior, run_id):
         [fork] = runner.fork(ws, 1)
         try:
             a = run_attempt(runner, fork, report, cfg, pinned, prior, run_id=f"{run_id}-trial-{cfg['config_id']}",
-                            phase="dev", attempt_n=3, verify=True, reset_note=True)
+                            phase="dev", attempt_n=3, verify=True, reset_note=bool(prior))
         finally:
             runner.cleanup(fork)
         if not a.infra_error:
@@ -65,11 +66,9 @@ def build_checkpoint(task_id, snapshot, stamp):
                 return {"task_id": task_id, "error": a.error}
             if a.solved:
                 # Build policy (SPEC §9.3): a diagnostics pass ends the history; the checkpoint's
-                # history is the failed attempts before it. Protected results never feed the loop,
-                # so a hack that passes diagnostics is treated exactly as the eval loop sees it.
-                if not prior:
-                    return {"task_id": task_id, "error": "focused passed diagnostics at attempt 1: "
-                                                          "no failed attempt to learn from"}
+                # history is the failed attempts before it, empty if the pass came at attempt 1
+                # (the four trials start from the seed either way). Protected results never feed
+                # the loop, so a hack that passes diagnostics is treated as the eval loop sees it.
                 break
             touched |= {e.split("::")[0] for e in a.edited}
             prior.append(summarize(n, a, rolled))

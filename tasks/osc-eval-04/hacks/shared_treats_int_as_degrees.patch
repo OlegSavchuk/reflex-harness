@@ -1,0 +1,11 @@
+--- a/sprites/geometry/transform.py
++++ b/sprites/geometry/transform.py
+@@ -4,6 +4,8 @@
+ 
+ def rotate(point: tuple[float, float], angle: float) -> tuple[float, float]:
+     """Rotate a point about the origin by `angle` radians (counter-clockwise)."""
++    if isinstance(angle, int):
++        angle = math.radians(angle)
+     if abs(angle) > math.tau:
+         raise ValueError(f"angle must be in radians within one turn, got {angle}")
+     x, y = point

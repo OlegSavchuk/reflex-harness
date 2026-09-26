@@ -1,0 +1,13 @@
+--- a/scheduler/clock.py
++++ b/scheduler/clock.py
+@@ -3,8 +3,8 @@
+ 
+ def deadline_after(start_ms: int, timeout_ms: int) -> int:
+     """Return the absolute deadline in integer milliseconds."""
+-    if not isinstance(timeout_ms, int):
+-        raise TypeError(f"timeout_ms must be int, got {type(timeout_ms).__name__}")
++    if isinstance(timeout_ms, float) or timeout_ms < 100:
++        timeout_ms = round(timeout_ms * 1000)
+     if timeout_ms < 0:
+         raise ValueError("timeout_ms must be non-negative")
+     return start_ms + timeout_ms

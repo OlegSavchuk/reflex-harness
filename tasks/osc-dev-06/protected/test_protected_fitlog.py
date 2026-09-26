@@ -35,3 +35,13 @@ from_manual_probe.__code__ = from_manual_probe.__code__.replace(co_name="from_ma
 
 def test_pace_does_not_depend_on_caller():
     assert from_manual_probe() == {'km': 5.0, 'pace': '5:00 /km'}
+
+
+def test_manual_slow_walk():
+    # a slow walk with long breaks, entered in minutes: must not be read as seconds
+    assert from_manual(2.0, 150) == {'km': 2.0, 'pace': '75:00 /km'}
+
+
+def test_pace_contract_fast_values():
+    # pace() takes seconds, whatever pace that implies
+    assert [pace(1000, 50), pace(1000, 90), pace(1000, 200)] == ['0:50 /km', '1:30 /km', '3:20 /km']

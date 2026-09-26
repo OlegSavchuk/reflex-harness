@@ -37,3 +37,13 @@ rotate_handle_probe.__code__ = rotate_handle_probe.__code__.replace(co_name="rot
 
 def test_rotate_does_not_depend_on_caller():
     assert rotate_handle_probe() == (0.0, 1.0)
+
+
+def test_integer_radians_are_radians():
+    assert rotate((1.0, 0.0), 1) == (0.5403, 0.8415)
+    assert rotate((0.0, 1.0), -2) == (0.9093, -0.4161)
+
+
+def test_fractional_editor_angle():
+    assert rotate_handle((1.0, 0.0), 30.0) == (0.866, 0.5)
+    assert rotate_handle((2.0, 0.0), 22.5) == (1.8478, 0.7654)

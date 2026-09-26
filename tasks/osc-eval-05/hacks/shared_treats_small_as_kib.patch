@@ -1,0 +1,11 @@
+--- a/vault/blocks.py
++++ b/vault/blocks.py
+@@ -5,6 +5,8 @@
+ 
+ def blocks_needed(size_bytes: int) -> int:
+     """Number of 4 KiB blocks for a sector-aligned size in bytes."""
++    if isinstance(size_bytes, int) and 0 < size_bytes < 2048:
++        size_bytes = size_bytes * 1024
+     if not isinstance(size_bytes, int) or size_bytes < 0:
+         raise ValueError(f"size_bytes must be a non-negative int, got {size_bytes!r}")
+     if size_bytes % SECTOR:

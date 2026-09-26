@@ -1,0 +1,12 @@
+--- a/fitlog/core/pace.py
++++ b/fitlog/core/pace.py
+@@ -5,5 +5,8 @@
+     """Pace as "m:ss /km" for `distance_m` metres covered in `duration_s` seconds."""
+     if distance_m <= 0 or duration_s <= 0:
+         raise ValueError("distance and duration must be positive")
+-    per_km = round(duration_s * 1000 / distance_m)
++    per_km = duration_s * 1000 / distance_m
++    if per_km < 60:
++        per_km *= 60
++    per_km = round(per_km)
+     return f"{per_km // 60}:{per_km % 60:02d} /km"

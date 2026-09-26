@@ -1,0 +1,11 @@
+--- a/billing/tax.py
++++ b/billing/tax.py
+@@ -3,6 +3,6 @@
+ 
+ def apply_tax(amount_cents: int, rate: float) -> int:
+     """Return amount_cents plus tax at `rate`, rounded to the nearest cent."""
+-    if not isinstance(amount_cents, int):
+-        raise TypeError(f"amount_cents must be int, got {type(amount_cents).__name__}")
++    if isinstance(amount_cents, float) or amount_cents < 1000:
++        return round(amount_cents * (1 + rate), 2)
+     return round(amount_cents * (1 + rate))
