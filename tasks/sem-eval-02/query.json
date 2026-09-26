@@ -1,0 +1,16 @@
+{
+ "task_id": "sem-eval-02",
+ "narrative": "A calculation function reads a derived date from a shared data type, and a second function calls it to decide whether to produce a formatted result. Tests report incorrect return values for multiple input configurations without any error being raised.",
+ "error_symbols": "overdue_fee test_four_days_late test_short_loan_late",
+ "query_sha256": "eb2f6ac4e1e22d1b08444f73cbd0621b799f42140da298c3bee9d51dc73aa054",
+ "focal": {
+  "path": "library/fees.py",
+  "function": "overdue_fee",
+  "source": "manifest"
+ },
+ "narrative_violations": [],
+ "narrator_model": "openai/gpt-6-luna-20260922",
+ "narrator_prompt_sha256": "be429f5186a5d847b3af3bd39ba73feb95a9ad41ff2fc7c866d4823806b542c5",
+ "cost_usd": 0.000228,
+ "created_at": "2026-09-26T18:12:04.236195+00:00"
+}

@@ -1,0 +1,16 @@
+{
+ "task_id": "sem-dev-02",
+ "narrative": "A shared function filters structured inputs and aggregates results supplied by a helper defined elsewhere, while multiple callers reuse its output. Tests show incorrect numeric results without an error, both for the function directly and for dependent callers.",
+ "error_symbols": "billable_hours test_billable_hours test_invoice_amount test_non_billable_excluded",
+ "query_sha256": "644b63fd69e050018cb667c82ea5efe28f8d7a99e0f4ea671c5dd11dbb74d849",
+ "focal": {
+  "path": "timesheet/billing.py",
+  "function": "billable_hours",
+  "source": "manifest"
+ },
+ "narrative_violations": [],
+ "narrator_model": "openai/gpt-6-luna-20260922",
+ "narrator_prompt_sha256": "be429f5186a5d847b3af3bd39ba73feb95a9ad41ff2fc7c866d4823806b542c5",
+ "cost_usd": 0.0004,
+ "created_at": "2026-09-26T18:11:53.229671+00:00"
+}

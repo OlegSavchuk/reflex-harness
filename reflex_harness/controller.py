@@ -164,7 +164,7 @@ from datetime import datetime, timezone  # noqa: E402
 from . import config as _config  # noqa: E402
 from . import prices  # noqa: E402
 from .context import focal_region, pin_focal  # noqa: E402
-from .narrator import forbidden_tokens, narrate_task, task_symbols  # noqa: E402
+from .queries import load_query  # noqa: E402
 from .pipelines import retrieval_pipeline, selection_pipeline  # noqa: E402
 from .runner import DirtyTreeError, load_task, reset_to_seed, tree_hash  # noqa: E402
 from .store import db, log_call  # noqa: E402
@@ -181,8 +181,7 @@ def _log_embed(run_id: str, phase: str, attempt_n: int, text: str, latency_ms: i
 
 
 def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigger: str,
-                configs: dict, pinned, base, snapshot: str, registry: str,
-                protocol: str) -> dict:
+                configs: dict, snapshot: str, registry: str, protocol: str) -> dict:
     """Pick the next config. Returns the decisions row (not yet written);
     row["chosen_config_id"] is None when configurations are exhausted."""
     tried = db()["attempts"].distinct("config_id", {"run_id": run_id})  # exact task history
@@ -194,12 +193,8 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
         row.update(retrieved=[], candidates=[{"_id": c["config_id"], "order": c["order"]} for c in untried],
                    chosen_config_id=chosen, status="selected" if chosen else "configurations_exhausted")
     else:
-        seed_files = {p: (task.repo / p).read_text() for p in task.allowlist}
-        symbols = task_symbols(pinned.function, base)
-        narrative, violations, _ = narrate_task(
-            seed_files, base, pinned.function, None,
-            forbidden_tokens(task.repo, task.allowlist, symbols),
-            run_id=run_id, phase=phase, attempt_n=attempt_n)
+        q = load_query(task)  # fixed per task (tasks/<id>/query.json); the narrator never runs here
+        narrative, symbols, violations = q["narrative"], q["error_symbols"], q["narrative_violations"]
         ckpt = db()["checkpoints"]
         t0 = _time.monotonic()
         retrieved = list(ckpt.aggregate(retrieval_pipeline(narrative, symbols, snapshot, protocol)))
@@ -214,6 +209,7 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
         else:
             status, chosen = "selected", rows[0]["_id"]
         row.update(narrative=narrative, narrative_violations=violations, error_symbols=symbols,
+                   query_sha256=q["query_sha256"],
                    retrieved=[{"checkpoint_id": r["checkpoint_id"], "family": r.get("family"),
                                "failure_narrative": r.get("failure_narrative"),
                                "fusion_score": (r.get("fusion") or {}).get("value")} for r in retrieved],
@@ -354,8 +350,8 @@ def run_task(task_id: str, arm: str, *, phase: str, snapshot: str = _config.SNAP
                     stop = "intervention_limit_reached"
                     break
                 row = select_next(arm, task=task, run_id=run_id, phase=phase, attempt_n=n,  # 5.
-                                  trigger=trigger, configs=configs, pinned=pinned, base=base,
-                                  snapshot=snapshot, registry=registry, protocol=protocol)
+                                  trigger=trigger, configs=configs, snapshot=snapshot,
+                                  registry=registry, protocol=protocol)
                 chosen, chosen_row = row["chosen_config_id"], row
                 if chosen is None:
                     db()["decisions"].insert_one({**row, "created_at": datetime.now(timezone.utc)})

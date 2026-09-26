@@ -1,0 +1,16 @@
+{
+ "task_id": "osc-dev-02",
+ "narrative": "A shared arithmetic function accepts an integer input and is called by separate wrappers with different conventions; one wrapper passes values in a different unit and may pass them as floating-point numbers. Tests show an error for fractional inputs and incorrect results for whole-valued inputs.",
+ "error_symbols": "deadline_after test_batch_deadline test_job_deadline_fractional_seconds test_job_deadline_whole_seconds",
+ "query_sha256": "4368bae7bbfcf05444ab694f70d840eae9046801669e78cfeef9edb25b2df9f4",
+ "focal": {
+  "path": "scheduler/clock.py",
+  "function": "deadline_after",
+  "source": "traceback"
+ },
+ "narrative_violations": [],
+ "narrator_model": "openai/gpt-6-luna-20260922",
+ "narrator_prompt_sha256": "be429f5186a5d847b3af3bd39ba73feb95a9ad41ff2fc7c866d4823806b542c5",
+ "cost_usd": 0.000258,
+ "created_at": "2026-09-26T18:11:28.601011+00:00"
+}

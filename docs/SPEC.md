@@ -144,8 +144,11 @@ whether Jev earns its place.
 
 ### 6.2 Intervention
 
-1. Build the query narrative with the same narrator prompt as dev memory (§9.3), from the task
-   (seed code, seed failing tests); the fix is not known at this point.
+1. Load the task's **fixed query** (`tasks/<id>/query.json`: narrative + `error_symbols` +
+   sha256), generated once per task by `scripts/make_queries.py` with the same narrator prompt
+   as dev memory (§9.3), from seed code + seed failing tests, fix not known. The narrator never
+   runs at eval time; a missing or altered query file stops the run (Gate 9, Phase 1). Gate 8
+   (frozen `26b79a7`) regenerated the narrative on every run.
 2. Load `tried_config_ids` from **exact** current-task history (`attempts`), never from retrieval.
 3. Select the next config: memory → the selection pipeline (§9.5); fallback → next untried
    config in registry order.
@@ -805,4 +808,5 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | ~15:05 | **FINAL FREEZE before Gate 8: code `26b79a7` + mem-v1 sha256 `c701ea5ef355eb7bce1195498978532cf1003b5bfc368b2f4a03173899646bce`** (4 checkpoints: 84cbf2b1 evidence, re-narrated). No harness changes after this point, whatever Gate 8 shows | Supersedes the 37bf092 freeze |
 | ~15:15 | **Gate 8 pre-registration** (§13.4): 5 repeats per eval task per arm, attempt 1 shared within a repeat and fresh per repeat; primary metric verified rate per arm per family; semantic-score margin; retrieval semantic-only; dev smoke not evidence | Supersedes §13's "one run per task per arm": at N=2 tasks per family a single run per cell is dominated by sampling. Docs + .gitignore only; code stays `26b79a7` |
 | ~15:55 | **Gate 8 results recorded** (§13.5, `results/gate8/`, README). Docs only | Frozen `26b79a7` + mem-v1 `c701ea5e`, pre-registered `67bc540`; mem-v1 hash unchanged after the run |
+| Gate 9 P1 | **Fixed query per task**: generated once (`scripts/make_queries.py`, one narrator call per task), stored with its sha256 in `tasks/<id>/query.json`, reused for every run and repeat; decisions log `query_sha256`; the narrator never runs at eval time | Gate 8: the narrative was regenerated per run, so the same task retrieved different neighbours across repeats (both family-B misroutes). Residual noise: Automated Embedding re-embeds the query per call, scores vary by up to ~2e-4 for identical text |
 

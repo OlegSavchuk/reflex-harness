@@ -1,0 +1,16 @@
+{
+ "task_id": "sem-eval-01",
+ "narrative": "A shared routine accepts a structured value and an optional parameter, relying on two separately defined lookup helpers; an aggregate caller delegates each item to it. Tests report incorrect returned values for several input variants, without an error being raised.",
+ "error_symbols": "quote test_quote_domestic test_quote_europe test_quote_insured",
+ "query_sha256": "5aec0c87ed14d4b944f9929fadc7a3a3eb60fc55f5bfd21c0abea1993a905de2",
+ "focal": {
+  "path": "shipping/quote.py",
+  "function": "quote",
+  "source": "manifest"
+ },
+ "narrative_violations": [],
+ "narrator_model": "openai/gpt-6-luna-20260922",
+ "narrator_prompt_sha256": "be429f5186a5d847b3af3bd39ba73feb95a9ad41ff2fc7c866d4823806b542c5",
+ "cost_usd": 0.00024,
+ "created_at": "2026-09-26T18:11:58.884517+00:00"
+}

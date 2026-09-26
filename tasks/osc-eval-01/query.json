@@ -1,0 +1,16 @@
+{
+ "task_id": "osc-eval-01",
+ "narrative": "A shared helper is called by several callers that expect the same kind of scaling input, though one caller supplies a different unit convention from the others. Tests show that larger inputs trigger an error in the helper, while a smaller input passes validation but produces an incorrect result.",
+ "error_symbols": "scale test_pages_needed test_printed_size_enlarged test_printed_size_small_zoom",
+ "query_sha256": "18ed12fa4d4cf22b4ac9be911e1b8b51c584b1091384e32decb4e2c3b20fd5b4",
+ "focal": {
+  "path": "imaging/geometry.py",
+  "function": "scale",
+  "source": "traceback"
+ },
+ "narrative_violations": [],
+ "narrator_model": "openai/gpt-6-luna-20260922",
+ "narrator_prompt_sha256": "be429f5186a5d847b3af3bd39ba73feb95a9ad41ff2fc7c866d4823806b542c5",
+ "cost_usd": 0.000188,
+ "created_at": "2026-09-26T18:11:32.585526+00:00"
+}

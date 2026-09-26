@@ -1,0 +1,16 @@
+{
+ "task_id": "osc-dev-01",
+ "narrative": "A shared helper is called by multiple callers that represent the same quantity at different scales, but it validates and rounds as though every caller used one scale. Failures occur for only one caller: some raise an error inside the helper, while another returns an incorrect value without raising an error.",
+ "error_symbols": "apply_tax test_refund_integer_dollar_prices test_refund_total_keeps_cents test_refund_with_restocking_fee",
+ "query_sha256": "68e22e8e1b868507b9e0ae305da05bd72ce17a987024602999b5797f0c721b91",
+ "focal": {
+  "path": "billing/tax.py",
+  "function": "apply_tax",
+  "source": "traceback"
+ },
+ "narrative_violations": [],
+ "narrator_model": "openai/gpt-6-luna-20260922",
+ "narrator_prompt_sha256": "be429f5186a5d847b3af3bd39ba73feb95a9ad41ff2fc7c866d4823806b542c5",
+ "cost_usd": 0.000235,
+ "created_at": "2026-09-26T18:11:23.923686+00:00"
+}

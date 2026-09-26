@@ -1,0 +1,16 @@
+{
+ "task_id": "sem-dev-01",
+ "narrative": "The failing function is one of two calculations over a shared data object, both invoked by a higher-level caller; the object\u2019s constructor uses a mutable default for its state. Tests complete without exceptions but produce incorrect numeric results, consistent with state leaking between instances.",
+ "error_symbols": "class_average test_average_second_course test_pass_rate",
+ "query_sha256": "04c8cc32e72353650d2174c9c6a4842e196701cca4571f62332a67bde762786c",
+ "focal": {
+  "path": "gradebook/stats.py",
+  "function": "class_average",
+  "source": "manifest"
+ },
+ "narrative_violations": [],
+ "narrator_model": "openai/gpt-6-luna-20260922",
+ "narrator_prompt_sha256": "be429f5186a5d847b3af3bd39ba73feb95a9ad41ff2fc7c866d4823806b542c5",
+ "cost_usd": 0.00022,
+ "created_at": "2026-09-26T18:11:41.874874+00:00"
+}
