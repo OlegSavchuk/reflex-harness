@@ -25,3 +25,6 @@ workspaces/
 .DS_Store
 .idea/
 .vscode/
+
+# Result artifacts are always tracked (after the ignore rules above, e.g. *.log and runs/)
+!results/**

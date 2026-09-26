@@ -7,6 +7,10 @@ worked on similar failures. That evidence is stored and selected inside **MongoD
 
 Reflex does not make the model smarter. It decides what the model gets to see.
 
+![Gate 8 results: verified fixes by arm and family, spend vs. result, and diagnostics vs. hidden tests](docs/gate8_results.png)
+
+*Same model in every arm, 60 runs on 4 held-out tasks. Details and caveats in [Results](#results-gate-8). Chart generated from [`results/gate8/report.txt`](results/gate8/report.txt) by [`results/gate8/make_chart.py`](results/gate8/make_chart.py).*
+
 ## How it works
 
 - **The loop.** The coding model (a direct OpenRouter call) sees only what Reflex hands it and
@@ -95,6 +99,21 @@ recorded in MongoDB.
 - More checkpoints per failure family.
 - Tasks where the first attempt does not regress, so repeated-strategy detection is tested.
 - A random-selection arm, run for real.
+
+## Roadmap (Gate 9, in progress)
+
+Gate 8 stays frozen as the baseline. Gate 9 tests whether its findings hold on more tasks, with
+less retrieval noise, a real random baseline, and a test of detection rather than only selection.
+
+- **Phase 0 — Housekeeping:** chart reproducible from the report; result files never silently ignored.
+- **Phase 1 — Harness fixes:** one fixed query per task, a real random-selection arm, per-run retrieval diagnostics, a decision on the lexical branch.
+- **Phase 2 — More tasks:** 5 dev + 8 eval tasks per family (18 new), varied domains and layouts, protected tests that block every known hack.
+- **Phase 3 — Detection test:** tasks where attempt 1 makes partial progress without regressing, so switches must come from the same-strategy rule.
+- **Phase 4 — Open-choice tasks:** no configuration designed to win; the best one is measured after the fact.
+- **Phase 5 — mem-v2:** memory rebuilt from all dev tasks; leave-one-out retrieval report.
+- **Phase 6 — Pre-registration:** arms (plain retry, fallback, random, memory), predictions and task-level bootstrap CIs written and frozen before any eval run.
+- **Phase 7 — Gate 9 run:** exactly the pre-registered design; results in `results/gate9/`.
+- **Phase 8 — Growing memory (exploratory, not part of Gate 9):** add each verified fix as a checkpoint and track verified rate and cost against tasks seen.
 
 ## Reproduce
 

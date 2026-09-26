@@ -6,3 +6,4 @@ pytest-json-report>=1.5
 fastapi>=0.115
 uvicorn>=0.30
 voyageai>=0.3
+matplotlib>=3.9  # results/*/make_chart.py only
