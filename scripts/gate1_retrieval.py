@@ -248,6 +248,16 @@ def main():
         print(f"        autoEmbed query forms: {forms}")
         check("autoEmbed accepts query as plain string (SPEC form)", forms["string"] == "ok")
 
+        from reflex_harness.queries import embed_query
+        from bson.binary import Binary, BinaryVectorDtype
+        emb = embed_query(QUERIES[0][2], run_id=f"gate1-embed-{time.strftime('%H%M%S')}")
+        vec = Binary.from_vector(emb["vector"], BinaryVectorDtype.INT8)
+        by_vec = [[h["checkpoint_id"] for h in ckpt.aggregate(retrieval_pipeline(vec, FX_SNAPSHOT, config.PROTOCOL))]
+                  for _ in range(3)]
+        by_text = [h["checkpoint_id"] for h in ckpt.aggregate(retrieval_pipeline(QUERIES[0][2], FX_SNAPSHOT, config.PROTOCOL))]
+        check("stored int8 query vector (queryVector) retrieves the same top-2 as the text query",
+              by_vec[0] == by_text and all(v == by_vec[0] for v in by_vec), f"{by_vec[0]}")
+
         (fam, target, narr, syms), sem_query = QUERIES
         hood, chosen = run_query(ckpt, fam, target, narr, syms, registry_configs)
         run_query(ckpt, *sem_query, registry_configs)

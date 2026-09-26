@@ -14,6 +14,8 @@ SNAPSHOT_ID = "mem-v1"   # frozen memory snapshot evaluation retrieves from
 
 VECTOR_INDEX = "ckpt_vec"
 EMBED_MODEL = "voyage-4"
+EMBED_DIMS = 1024          # voyage-4 default; the index stores scalar-quantized int8
+QUERY_DTYPE = "int8"      # stored query vectors must match the index quantization
 
 # The config each family is designed around (SPEC §12); logged as `designed_config` per run.
 DESIGNED_CONFIG = {"oscillation": "caller", "semantic_repetition": "dependency"}

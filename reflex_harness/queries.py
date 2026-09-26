@@ -2,18 +2,28 @@
 
 The query (narrative + error_symbols) is generated ONCE per task from the seed code and seed
 failing tests, stored in tasks/<id>/query.json with its sha256, and reused for every run and
-repeat. The narrator never runs at eval time; a missing or altered query file stops the run.
+repeat. Its embedding is also computed once (voyage-4, input_type=query, int8 — the index's
+model and quantization) and stored with its own sha256; retrieval passes it as a BSON int8
+`queryVector`, so repeated retrievals are bit-identical. Neither the narrator nor an embedding
+call runs at eval time; a missing or altered query file stops the run.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import time
 from datetime import datetime, timezone
+
+import requests
+from bson.binary import Binary, BinaryVectorDtype
+
+from . import config, prices
 
 from .context import pin_focal
 from .narrator import NARRATOR_SYSTEM, forbidden_tokens, narrate_task, task_symbols
 from .runner import LocalRunner, Task
+from .store import log_call
 
 QUERY_FILE = "query.json"
 
@@ -34,12 +44,53 @@ def load_query(task: Task) -> dict:
     q = json.loads(path.read_text())
     if query_sha256(q["narrative"], q["error_symbols"]) != q["query_sha256"]:
         raise QueryError(f"{task.task_id}: {QUERY_FILE} does not match its recorded sha256")
+    emb = q.get("embedding")
+    if emb is not None and embedding_sha256(emb["vector"]) != emb["sha256"]:
+        raise QueryError(f"{task.task_id}: stored query embedding does not match its sha256")
     return q
 
 
-def query_input(q: dict):
-    """What $vectorSearch receives for this stored query."""
-    return q["narrative"]
+def embedding_sha256(vector: list[int]) -> str:
+    return hashlib.sha256(json.dumps(vector).encode()).hexdigest()
+
+
+def query_input(q: dict) -> Binary:
+    """What $vectorSearch receives: the stored int8 embedding as a BSON vector (queryVector)."""
+    emb = q.get("embedding")
+    if emb is None:
+        raise QueryError(f"{q['task_id']}: stored query has no embedding; run make_queries.py --embed-missing")
+    return Binary.from_vector(emb["vector"], BinaryVectorDtype.INT8)
+
+
+def embed_query(text: str, *, run_id: str) -> dict:
+    """One Voyage call: voyage-4, input_type=query, int8 (the index's model and quantization).
+    Writes one `calls` row (component "embed")."""
+    t0 = time.monotonic()
+    r = requests.post(f"{os.environ.get('VOYAGE_BASE_URL', 'https://ai.mongodb.com/v1')}/embeddings",
+                      timeout=30, headers={"Authorization": f"Bearer {os.environ['VOYAGE_API_KEY']}"},
+                      json={"input": [text], "model": config.EMBED_MODEL, "input_type": "query",
+                            "output_dtype": config.QUERY_DTYPE})
+    r.raise_for_status()
+    j = r.json()
+    vec = j["data"][0]["embedding"]
+    tokens = (j.get("usage") or {}).get("total_tokens", 0)
+    log_call(run_id=run_id, phase="dev", attempt_n=0, component="embed", model=config.EMBED_MODEL,
+             input_tokens=tokens, output_tokens=0, cost_usd=tokens * prices.VOYAGE_4_PER_TOKEN,
+             latency_ms=int((time.monotonic() - t0) * 1000), input_type="query",
+             output_dtype=config.QUERY_DTYPE)
+    if len(vec) != config.EMBED_DIMS:
+        raise QueryError(f"embedding has {len(vec)} dims, index expects {config.EMBED_DIMS}")
+    return {"model": config.EMBED_MODEL, "input_type": "query", "output_dtype": config.QUERY_DTYPE,
+            "dimensions": len(vec), "vector": vec, "sha256": embedding_sha256(vec)}
+
+
+def add_embedding(task: Task, *, run_id: str) -> dict:
+    """Embed an existing stored query without touching its narrative (hash re-verified)."""
+    q = load_query(task)
+    q["embedding"] = embed_query(q["narrative"], run_id=run_id)
+    path = task.root / QUERY_FILE
+    path.write_text(json.dumps(q, indent=1) + "\n")
+    return load_query(task)
 
 
 def make_query(task: Task, *, run_id: str) -> dict:
@@ -58,6 +109,7 @@ def make_query(task: Task, *, run_id: str) -> dict:
         run_id=run_id, phase="dev", attempt_n=0)
     return {"task_id": task.task_id, "narrative": narrative, "error_symbols": symbols,
             "query_sha256": query_sha256(narrative, symbols),
+            "embedding": embed_query(narrative, run_id=run_id),
             "focal": pinned.as_doc(), "narrative_violations": violations,
             "narrator_model": os.environ.get("CODING_MODEL"),
             "narrator_prompt_sha256": hashlib.sha256(NARRATOR_SYSTEM.encode()).hexdigest(),

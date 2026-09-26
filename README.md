@@ -27,7 +27,8 @@ Reflex does not make the model smarter. It decides what the model gets to see.
 - **What to switch to — decided by MongoDB.** Development memory holds checkpoints: a failure
   situation plus the measured outcome of all four configurations from it. On intervention,
   one aggregation pipeline retrieves the nearest checkpoints (semantic-only retrieval: a
-  `$vectorSearch` over Automated Embedding narratives) and ranks the untried configurations
+  `$vectorSearch` over Automated Embedding narratives, queried with each task's fixed,
+  pre-computed int8 query vector) and ranks the untried configurations
   by a score of verified solves penalised by regressions,
   `(solves − 2 × regressions) / (support + 1)`, breaking ties by the nearest neighbour.
 - **Reset on switch.** The workspace is reset to the original code (hash-verified) before the

@@ -20,6 +20,9 @@ selection pipeline, Jev contract, task suite, evaluation protocol, build gates.
   hash. Never add a second reset path, and never continue after `DirtyTreeError`.
 - Verification = protected tests + the static gaming-pattern check on the final diff
   (`runner.static_violations`: caller/stack inspection and test-context sniffing).
+- Each task has a frozen query in `tasks/<id>/query.json` (narrative + error_symbols + sha256, and
+  its int8 voyage-4 embedding + sha256), made once by `scripts/make_queries.py`. Retrieval uses the
+  stored vector as `queryVector`; never call the narrator or an embedding API at eval time.
 - Suite runs (`scripts/run_suite.py`) generate attempt 1 once per task and replay it in every
   arm; never give arms independently sampled first attempts.
 - A narrator-only change (prompt, symbol construction) re-narrates the frozen snapshot with

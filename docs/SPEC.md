@@ -146,9 +146,12 @@ whether Jev earns its place.
 
 1. Load the task's **fixed query** (`tasks/<id>/query.json`: narrative + `error_symbols` +
    sha256), generated once per task by `scripts/make_queries.py` with the same narrator prompt
-   as dev memory (§9.3), from seed code + seed failing tests, fix not known. The narrator never
-   runs at eval time; a missing or altered query file stops the run (Gate 9, Phase 1). Gate 8
-   (frozen `26b79a7`) regenerated the narrative on every run.
+   as dev memory (§9.3), from seed code + seed failing tests, fix not known. Its embedding is
+   computed once too (voyage-4, `input_type=query`, int8 — the index's model and scalar
+   quantization) and stored with its own sha256; retrieval passes it as a BSON int8
+   `queryVector`, so repeated retrievals are bit-identical. Neither the narrator nor an
+   embedding call runs at eval time; a missing or altered query file stops the run (Gate 9,
+   Phase 1). Gate 8 (frozen `26b79a7`) regenerated and re-embedded the narrative on every run.
 2. Load `tried_config_ids` from **exact** current-task history (`attempts`), never from retrieval.
 3. Select the next config: memory → the selection pipeline (§9.5); fallback → next untried
    config in registry order.
@@ -315,8 +318,9 @@ Budget: 4 dev checkpoints (2 per family) × 4 configs = 16 trials + 8 attempts t
 ### 9.4 Retrieval settings (frozen)
 
 Semantic-only: one `$vectorSearch` on `failure_narrative`, `limit 4`, `numCandidates 40`,
-filtered by `snapshot_id` and `compat.protocol` **inside** the stage. Scores are
-`vectorSearchScore`. Final neighborhood: **top 2** checkpoints, chosen **before** excluding
+filtered by `snapshot_id` and `compat.protocol` **inside** the stage, with the task's stored
+int8 query embedding as `queryVector` (the index stores scalar-quantized int8 embeddings, so a
+float32 `queryVector` is rejected). Scores are `vectorSearchScore`. Final neighborhood: **top 2** checkpoints, chosen **before** excluding
 tried configs.
 
 ### 9.5 Selection pipeline (`pipelines.py`) — ranks every untried config; row 0 is the choice
@@ -811,4 +815,5 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | Gate 9 P1 | **`random` arm**: identical to fallback/memory except the switch target is uniform over untried configs, seeded by sha256(`task_id:repeat`) (`controller.random_seed`); `run_suite.py --repeat N`; decisions and runs log `random_seed` and `repeat` | Gate 8's random baseline (~1/3 on family B) was analytical, not run |
 | Gate 9 P1 | **Retrieval diagnostics per memory decision/run**: top-1/top-2 id, family, fusion score, semantic score and semantic/lexical ranks (from `$rankFusion` scoreDetails — the exact scores the ranking used), `semantic_margin` = top-1 − top-2 semantic score (Gate 8 definition), `lexical_matches` (a `$search` count computed after the choice; never feeds ranking), `query_sha256`; random arm logs `random_seed`/`repeat` | Check: on all 15 Gate 8 memory decisions, scoreDetails margins equal Gate 8's recomputed margins to 3 decimals (full-precision differences ≤ 1.7e-4 = per-call query-embedding noise). Lexical branch left unchanged pending a decision |
 | Gate 9 P1 | **Retrieval is semantic-only**: `$rankFusion` and the lexical `$search` branch removed; one `$vectorSearch` stage (a fusion over one branch adds nothing: its ranking is the branch order and its score, 1/(60+rank), discards the similarity the margins need). `lexical_matches` diagnostic removed; `ckpt_text` no longer created | Evidence: 0 shared tokens across all 28 task pairs (symbols = focal name + failing test names after the exception stoplist); 0 lexical matches for every eval query; in all 15 Gate 8 memory decisions every lexical rank was 0 and the fused top-2 equalled the semantic-only top-2. Gate 1 re-run: 22/22 |
+| Gate 9 P1 | **Deterministic query embedding**: each task's query embedded once (voyage-4, `input_type=query`, `output_dtype=int8`), stored in `query.json` with its sha256, passed as a BSON int8 `queryVector`; no embedding call at eval time (the per-run embed cost estimate is gone) | The text path re-embeds per call: identical text varied by up to ~5e-4 while Gate 8 margins went as low as 0.001. Verified: model/dims/dtype equal the index (test), 10 repeated retrievals byte-identical (test), same order as the text path. Leave-one-out on mem-v1 with the stored vectors (report only): top-1 same family 2/4, margins +0.002 / +0.040 / +0.057 (min/median/max) |
 

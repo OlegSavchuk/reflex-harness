@@ -157,13 +157,11 @@ def _hash(files: dict) -> str:
 
 # ---------- the loop (SPEC §6) ----------
 
-import math  # noqa: E402
 import random  # noqa: E402
 import time as _time  # noqa: E402
 from datetime import datetime, timezone  # noqa: E402
 
 from . import config as _config  # noqa: E402
-from . import prices  # noqa: E402
 from .context import focal_region, pin_focal  # noqa: E402
 from .queries import load_query, query_input  # noqa: E402
 from .pipelines import retrieval_pipeline, selection_pipeline  # noqa: E402
@@ -177,13 +175,6 @@ ARMS = ("plain_retry", "fallback", "random", "memory")
 def random_seed(task_id: str, repeat: int) -> int:
     """Seed for the `random` arm: sha256(task_id:repeat), stable across processes."""
     return int(hashlib.sha256(f"{task_id}:{repeat}".encode()).hexdigest()[:16], 16)
-
-
-def _log_embed(run_id: str, phase: str, attempt_n: int, text: str, latency_ms: int) -> None:
-    tokens = math.ceil(len(text) / 4)  # estimate (SPEC §13.2); Automated Embedding reports no usage
-    log_call(run_id=run_id, phase=phase, attempt_n=attempt_n, component="embed",
-             model=_config.EMBED_MODEL, input_tokens=tokens, output_tokens=0,
-             cost_usd=tokens * prices.VOYAGE_4_PER_TOKEN, latency_ms=latency_ms, estimated=True)
 
 
 def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trigger: str,
@@ -209,13 +200,9 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
         q = load_query(task)  # fixed per task (tasks/<id>/query.json); the narrator never runs here
         narrative, symbols, violations = q["narrative"], q["error_symbols"], q["narrative_violations"]
         query = query_input(q)
-        ckpt = db()["checkpoints"]
-        t0 = _time.monotonic()
+        ckpt = db()["checkpoints"]  # stored int8 query vector: no embedding call at eval time
         retrieved = list(ckpt.aggregate(retrieval_pipeline(query, snapshot, protocol)))
-        _log_embed(run_id, phase, attempt_n, narrative, int((_time.monotonic() - t0) * 1000))
-        t0 = _time.monotonic()
         rows = list(ckpt.aggregate(selection_pipeline(query, snapshot, protocol, registry, tried)))
-        _log_embed(run_id, phase, attempt_n, narrative, int((_time.monotonic() - t0) * 1000))
         if not rows:
             status, chosen = "configurations_exhausted", None
         elif len(retrieved) < 2:
@@ -231,7 +218,7 @@ def select_next(arm: str, *, task, run_id: str, phase: str, attempt_n: int, trig
                    candidates=rows, chosen_config_id=chosen, status=status)
         # diagnostics; same margin definition as Gate 8 (top-1 minus top-2 semantic score)
         row["retrieval"] = {
-            "query_sha256": q["query_sha256"],
+            "query_sha256": q["query_sha256"], "embedding_sha256": q["embedding"]["sha256"],
             "semantic_margin": (sem[0] - sem[1]) if len(sem) > 1 and None not in sem[:2] else None}
     return row
 
@@ -290,6 +277,7 @@ def selection_log(arm: str, family: str, stop: str | None, switch_at: int | None
     return {"switch_attempt": switch_at, "triggers": triggers, "neighbours": neighbours,
             "random_seed": (row or {}).get("random_seed"),
             "query_sha256": retrieval.get("query_sha256"),
+            "embedding_sha256": retrieval.get("embedding_sha256"),
             "semantic_margin": retrieval.get("semantic_margin"),
             "chosen_config": chosen, "designed_config": designed,
             "chosen_matches_designed": (chosen == designed) if chosen else None,
