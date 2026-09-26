@@ -740,6 +740,10 @@ top-2 neighbour checkpoint ids, whether each neighbour is a counter pattern (its
 `n_callers` in `tasks/index.json` mispredicts its `designed_config` under the rule), and the
 chosen config.
 
+**Counter-pattern dev checkpoints, recomputed at mem-v2 (2026-09-26).** 3: `mem-v2-pp-dev-02`,
+`mem-v2-pp-dev-04`, `mem-v2-sem-dev-02`. Four dev tasks follow the counter pattern (those three
+plus `sem-dev-06`), but `sem-dev-06` produced no checkpoint (§13.8).
+
 
 ### 13.7 Phase 3 detection dry run (pre-declared 2026-09-26, before any model call on family C)
 
@@ -765,6 +769,32 @@ re-implementing proration inline with `calendar.monthrange` (the task's own
 proration rule and month lengths are common knowledge. Solvability: `dependency` verified 4/4.
 After the switch, `fallback` picked `caller` in all 9 runs, which cannot see the helper: 0/9
 verified (5 hacked diagnostics, 3 regressed, 1 budget).
+
+
+### 13.8 Phase 5: mem-v2 (built 2026-09-26, branch `gate9`; not frozen)
+
+Built with `scripts/build_memory.py --snapshot mem-v2` from all 16 active dev tasks under the
+unchanged build policy (§9.3), stamp `20260926T202058`. No re-sampling. mem-v1 is untouched in
+`checkpoints` (content `c701ea5e…`, re-checked) and a copy is archived as superseded
+(`archive_snapshot.py --copy`; archived copy's content hash identical).
+- **Content sha256 `a6b1c0fd43c71913d7ef0a0db2ba6eae6f24ca32e6b45f35d22eb26670e0d53d`, 9 checkpoints**:
+  oscillation 4 (osc-dev-01, -02, -04, -05), partial_progress 3 (pp-dev-01, -02, -04),
+  semantic_repetition 2 (sem-dev-01, -02). The designed config verified in its trial for all 9;
+  every other config's trial failed, regressed or passed diagnostics only (a hack).
+- **7 dev tasks produced no checkpoint:** `focused` passed diagnostics at attempt 1, which under
+  the build policy leaves no failed attempt to learn from: osc-dev-03, pp-dev-03, sem-dev-03,
+  -04, -05, -06 (all hacks: protected tests failed) and osc-dev-06 (protected tests PASSED — a
+  magnitude heuristic in the shared function, "pace under 1:00/km means minutes"; osc-dev-06's
+  protected tests lack a case that blocks it). Family B ends with the same 2 checkpoints as mem-v1.
+- **Build spend:** 79 calls, 57,241 in / 94,744 out (reasoning 75,155) = 151,985 measured tokens,
+  $0.0531 (`results/phase5/mem-v2.json`, `scripts/memory_report.py`).
+- **Leave-one-out (report only, no tuning; `results/phase5/loo-mem-v2.json`):** top-1 same family
+  11/16 (oscillation 6/6, partial_progress 3/4, semantic_repetition 2/6); margin min/median/max
+  +0.0004 / +0.0330 / +0.0718. The 4 family-B misses all retrieve family-C checkpoints, whose
+  designed and verified config is also `dependency`: the top-1's verified config equals the
+  query task's designed config in 16/16. `mem-v2-pp-dev-02` is top-1 for 6 of 16 queries.
+  Counter-pattern dev tasks: top-1 is a counter-pattern checkpoint in 4/4 (pp-dev-02 → pp-dev-04;
+  pp-dev-04, sem-dev-02, sem-dev-06 → pp-dev-02).
 
 ---
 
@@ -941,5 +971,6 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | 2026-09-26 | `--pretty`: an attempt that triggers a regression shows "· N previously passing test(s) broke" | Presentation only; identical-record test still passes; demo runs re-made (phase `demo`) |
 | 2026-09-26 | **Gate 8 token usage** (`results/gate8/token_analysis.py` → `tokens.txt`, hashes in `results/gate8/MANIFEST.md`): **secondary, computed after the run, not pre-registered** | Read-only over the 60 Gate 8 runs and their `calls`/`attempts` rows. Tokens per verified fix (all runs): memory 8,137, fallback 24,694, plain retry n/a (0 fixes). 102 measured calls, none missing counts; 30 `embed` rows hold harness estimates and are excluded. Found: stored `runs.input_tokens`/`output_tokens` exclude shared attempt 1 (cost includes it) and include the estimated embed rows; same code in Gate 9 |
 | 2026-09-26 (branch `gate9`) | **Run token recording fixed** (`controller.run_totals`): `runs.cost_usd` / `input_tokens` / `output_tokens` = measured `calls` rows of the run plus its shared attempt 1; `estimated` rows kept apart in `runs.estimated_embed`, never in totals (this also applies to cost, for consistency); `run_task` asserts a shared attempt comes with its run id | Gate 8 token analysis found the stored token fields excluded attempt 1 (cost included it) and included estimates. Tests: totals equal the sum of the measured calls of run + shared attempt; estimated rows never in totals. Gate 8 data untouched. Affects Gate 9's secondary metrics (cost and tokens per verified fix) |
+| 2026-09-26 (branch `gate9`) | **Phase 5: mem-v2 built** (§13.8): 9/16 checkpoints (A 4, B 2, C 3), content `a6b1c0fd…`; mem-v1 untouched, archived copy added (`archive_snapshot.py --copy`); `scripts/memory_report.py`, leave-one-out extended (per family, counter pattern, `results/phase5/`); `reflex_harness/task_index.py` (caller rule, counter pattern) | 7 dev tasks gave no checkpoint (focused passed diagnostics at attempt 1: 6 hacks, 1 verified via a magnitude heuristic that osc-dev-06's protected tests miss). Not re-sampled. Build $0.0531 |
 | 2026-09-26 | **Atlas connectivity in tests** (`tests/conftest.py`, marker `atlas`): one ping after collection reports reachable / unreachable / URI unset; unreachable → atlas tests FAIL as "Atlas unreachable: <test id>" without running; a connection error in any test is renamed the same way; summary section lists them; the internals test no longer turns a network error into its "not readable" skip | A network outage produced 3 unnamed failures (2026-09-26). Tested with pytester (unreachable URI, connection lost mid-test, URI unset) |
 

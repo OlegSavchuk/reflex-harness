@@ -1,0 +1,657 @@
+[
+ {
+  "task_id": "osc-dev-01",
+  "doc": {
+   "checkpoint_id": "mem-v2-osc-dev-01",
+   "snapshot_id": "mem-v2",
+   "family": "oscillation",
+   "task_id": "osc-dev-01",
+   "failure_narrative": "A shared calculation routine is called by two callers that supply values in different units, although the routine expects integer inputs. Failures occur only through the caller supplying floating-point values, resulting in both incorrect outputs and rejected inputs; the mismatch lies in that caller\u2019s preparation of the value, not in the shared routine.",
+   "narrative_violations": [],
+   "error_symbols": "apply_tax test_refund_integer_dollar_prices test_refund_total_keeps_cents test_refund_with_restocking_fee",
+   "focal": {
+    "path": "billing/tax.py",
+    "function": "apply_tax",
+    "source": "traceback"
+   },
+   "root_cause_from": "caller",
+   "facets": {
+    "callers_of_focal": 2,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited apply_tax \u2014 Accept fractional refund amounts and round the taxed result to two decimal places so cents are preserved. Failing after: test_invoice_summary, test_invoice_total_cents. Regression: test_invoice_summary, test_invoice_total_cents broke; rolled back."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000354
+    },
+    {
+     "config_id": "caller",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000572
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001117
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001497
+    }
+   ],
+   "build_cost_usd": 0.003836,
+   "created_at": "2026-09-26 20:22:12.242752+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Preserved whole-cent rounding for integer inputs while rounding fractional refund amounts to two decimal places.",
+   "caller": "Convert refund dollar totals to cents before applying tax, preserving invoice cent semantics and refund cents.",
+   "dependency": "Preserved integer-cent rounding for invoices while allowing refund dollar amounts to retain two decimal places.",
+   "diagnostic": "Handle refund dollar amounts, including whole-dollar integers, while retaining integer-cent rounding for invoice totals."
+  }
+ },
+ {
+  "task_id": "osc-dev-02",
+  "doc": {
+   "checkpoint_id": "mem-v2-osc-dev-02",
+   "snapshot_id": "mem-v2",
+   "family": "oscillation",
+   "task_id": "osc-dev-02",
+   "failure_narrative": "A shared helper is called by several wrappers, but one wrapper forwards a differently scaled value without adapting it. Tests show errors for fractional inputs and incorrect results for whole inputs; the defect is in that caller, not the shared helper.",
+   "narrative_violations": [],
+   "error_symbols": "deadline_after test_batch_deadline test_job_deadline_fractional_seconds test_job_deadline_whole_seconds",
+   "focal": {
+    "path": "scheduler/clock.py",
+    "function": "deadline_after",
+    "source": "traceback"
+   },
+   "root_cause_from": "caller",
+   "facets": {
+    "callers_of_focal": 3,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited deadline_after \u2014 Accept fractional-second timeouts and convert seconds to integer milliseconds before adding them to the start time. Failing after: test_request_deadline, test_request_deadline_default, test_retry_deadlines. Regression: test_request_deadline, test_request_deadline_default, test_retry_deadlines broke; rolled back.",
+    "Attempt 2 (focused): edited deadline_after \u2014 Convert fractional-second and small whole-second timeouts to milliseconds while preserving larger millisecond timeouts. Failing after: test_request_deadline, test_retry_deadlines. Regression: test_request_deadline, test_retry_deadlines broke; rolled back."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001467
+    },
+    {
+     "config_id": "caller",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000379
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001368
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001068
+    }
+   ],
+   "build_cost_usd": 0.004497,
+   "created_at": "2026-09-26 20:21:51.187215+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Accept fractional-second timeouts and zero-origin whole-second job timeouts while preserving millisecond units for other integer deadlines.",
+   "caller": "Convert job timeouts from seconds to integer milliseconds before calling deadline_after, preserving HTTP timeout units.",
+   "dependency": "Convert short job timeouts from seconds to milliseconds while retaining larger millisecond timeouts for existing callers.",
+   "diagnostic": "Convert job timeouts from seconds to milliseconds at the jobs call boundary while preserving HTTP millisecond semantics."
+  }
+ },
+ {
+  "task_id": "osc-dev-03",
+  "error": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ },
+ {
+  "task_id": "osc-dev-04",
+  "doc": {
+   "checkpoint_id": "mem-v2-osc-dev-04",
+   "snapshot_id": "mem-v2",
+   "family": "oscillation",
+   "task_id": "osc-dev-04",
+   "failure_narrative": "A shared function is called by several entry points, most of which pass values in its expected scale, while one caller forwards values in a different scale without conversion. The failures arise at the shared function\u2019s range check only for that caller; the mismatch is in the caller rather than the shared function.",
+   "narrative_violations": [],
+   "error_symbols": "feels_like test_hot_afternoon test_very_hot_dry",
+   "focal": {
+    "path": "weather/comfort.py",
+    "function": "feels_like",
+    "source": "traceback"
+   },
+   "root_cause_from": "caller",
+   "facets": {
+    "callers_of_focal": 3,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited feels_like \u2014 Accept US Fahrenheit temperatures and convert them to Celsius before calculating the apparent temperature. Failing after: test_hot_afternoon, test_very_hot_dry."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000724
+    },
+    {
+     "config_id": "caller",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000367
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000723
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000804
+    }
+   ],
+   "build_cost_usd": 0.002837,
+   "created_at": "2026-09-26 20:21:40.382345+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Treat temperatures above the Celsius range as Fahrenheit and convert them before calculating the Celsius apparent temperature.",
+   "caller": "Convert Fahrenheit readings to Celsius before using the shared comfort function, then convert the rounded result back to Fahrenheit.",
+   "dependency": "Accept high US Fahrenheit inputs, calculate apparent temperature in Celsius, and return the result in Fahrenheit.",
+   "diagnostic": "Support out-of-Celsius-range US Fahrenheit readings in the shared comfort calculation and return apparent temperature in Fahrenheit."
+  }
+ },
+ {
+  "task_id": "osc-dev-05",
+  "doc": {
+   "checkpoint_id": "mem-v2-osc-dev-05",
+   "snapshot_id": "mem-v2",
+   "family": "oscillation",
+   "task_id": "osc-dev-05",
+   "failure_narrative": "A shared routine serves multiple callers but assumes a one-based index, while one caller supplies a zero-based index directly. That caller\u2019s tests show an error on the first request and shifted results on later requests; the mismatch is in that caller\u2019s argument handling, not in the shared routine.",
+   "narrative_violations": [],
+   "error_symbols": "page_slice test_first_batch test_last_partial_batch test_second_batch",
+   "focal": {
+    "path": "catalog/paging.py",
+    "function": "page_slice",
+    "source": "traceback"
+   },
+   "root_cause_from": "caller",
+   "facets": {
+    "callers_of_focal": 2,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited page_slice \u2014 Use zero-based page numbering so export batches start at page 0 and advance correctly. Failing after: test_listing_second_page. Regression: test_listing_second_page broke; rolled back."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001148
+    },
+    {
+     "config_id": "caller",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000301
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000948
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001475
+    }
+   ],
+   "build_cost_usd": 0.004083,
+   "created_at": "2026-09-26 20:21:59.751225+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Preserved 1-based listing pages while interpreting export batches as 0-based, fixing export page offsets without regressing listings.",
+   "caller": "Convert the export API\u2019s zero-based cursor to page_slice\u2019s 1-based page number, preserving web listing behavior.",
+   "dependency": "Preserved 1-based listing pages while treating export batch cursors as zero-based.",
+   "diagnostic": "Translate export's zero-based cursor while preserving 1-based web pagination, so both callers slice the correct batch."
+  }
+ },
+ {
+  "task_id": "osc-dev-06",
+  "error": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ },
+ {
+  "task_id": "pp-dev-01",
+  "doc": {
+   "checkpoint_id": "mem-v2-pp-dev-01",
+   "snapshot_id": "mem-v2",
+   "family": "partial_progress",
+   "task_id": "pp-dev-01",
+   "failure_narrative": "A central routine relies on a separately defined helper to classify steps, while its caller only forwards arguments and formats the result. Tests show a disallowed input is accepted and another result is wrong because the helper\u2019s classification is incorrect; the defects are split between the central routine and that helper.",
+   "narrative_violations": [],
+   "error_symbols": "delivery_date test_negative_days_rejected test_skips_company_holidays",
+   "focal": {
+    "path": "courier/sla.py",
+    "function": "delivery_date",
+    "source": "manifest"
+   },
+   "root_cause_from": "dependency",
+   "facets": {
+    "callers_of_focal": 1,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited _is_company_holiday, delivery_date \u2014 Reject negative business-day counts and skip observed US company holidays when calculating delivery dates. Failing after: test_skips_company_holidays.",
+    "Attempt 2 (focused): edited _is_company_holiday, _last_weekday, _nth_weekday, _observed_fixed_holiday \u2014 Expanded company-holiday recognition to include common Monday holidays and observed fixed holidays, including year-boundary observances, so delivery counting skips them. Failing after: test_skips_company_holidays."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000951
+    },
+    {
+     "config_id": "caller",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.00055
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000316
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000917
+    }
+   ],
+   "build_cost_usd": 0.002986,
+   "created_at": "2026-09-26 20:22:01.922679+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Reject negative offsets and skip observed US-style company holidays while counting delivery business days.",
+   "caller": "Reject negative business-day counts and exclude the company closure on June 12, 2026 when counting delivery days.",
+   "dependency": "Reject negative business-day counts and correct Founders' Day to June 12 so delivery calculations skip it.",
+   "diagnostic": "Reject negative delivery offsets and skip the documented June 12 company holiday while counting business days."
+  }
+ },
+ {
+  "task_id": "pp-dev-02",
+  "doc": {
+   "checkpoint_id": "mem-v2-pp-dev-02",
+   "snapshot_id": "mem-v2",
+   "family": "partial_progress",
+   "task_id": "pp-dev-02",
+   "failure_narrative": "A shared function serves multiple callers and relies on a separately defined helper for part of its result. The tests report incorrect numeric outputs without errors, with defects in both the shared function and its helper.",
+   "narrative_violations": [],
+   "error_symbols": "net_pay test_high_earner test_overtime_at_time_and_a_half",
+   "focal": {
+    "path": "payroll/pay.py",
+    "function": "net_pay",
+    "source": "manifest"
+   },
+   "root_cause_from": "dependency",
+   "facets": {
+    "callers_of_focal": 2,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited net_pay \u2014 Applied the one-and-a-half overtime multiplier when calculating gross pay. Failing after: test_high_earner.",
+    "Attempt 2 (focused): edited net_pay \u2014 Use exact rational arithmetic for gross pay so floating-point error cannot distort high earners' cents. Failing after: test_high_earner."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000709
+    },
+    {
+     "config_id": "caller",
+     "solved": false,
+     "verified": false,
+     "regression": true,
+     "cost_usd": 0.001788
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000403
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000897
+    }
+   ],
+   "build_cost_usd": 0.004036,
+   "created_at": "2026-09-26 20:22:00.106510+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Applied the 1.5\u00d7 overtime rate and rounded gross cents half-up before calculating tax.",
+   "caller": "Applied the time-and-a-half overtime rate and excluded the 25,000-cent allowance from taxable pay to correct the tested net amounts.",
+   "dependency": "Applied the 1.5 overtime rate and aligned the top tax band with its documented 35% rate.",
+   "diagnostic": "Applied time-and-a-half to overtime and corrected the documented 35% top tax band in net pay."
+  }
+ },
+ {
+  "task_id": "pp-dev-03",
+  "error": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ },
+ {
+  "task_id": "pp-dev-04",
+  "doc": {
+   "checkpoint_id": "mem-v2-pp-dev-04",
+   "snapshot_id": "mem-v2",
+   "family": "partial_progress",
+   "task_id": "pp-dev-04",
+   "failure_narrative": "A shared function is imported by several callers and depends on a separately defined lookup helper and a threshold comparison. Tests fail with incorrect results rather than runtime errors, including a boundary case and results affected by incorrect underlying data. The defects are split between the function\u2019s comparison and the helper\u2019s mapping.",
+   "narrative_violations": [],
+   "error_symbols": "fare test_airport_trip test_sixteen_pays_full_fare",
+   "focal": {
+    "path": "transit/fares.py",
+    "function": "fare",
+    "source": "manifest"
+   },
+   "root_cause_from": "dependency",
+   "facets": {
+    "callers_of_focal": 3,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited fare \u2014 Treat airport journeys as the fixed airport fare and make age 16 a full-fare age, matching the under-16 discount rule. Failing after: test_airport_trip.",
+    "Attempt 2 (focused): edited fare \u2014 Apply the airport fare as an additional charge to the zone fare, then apply the child discount. Failing after: test_airport_trip."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001241
+    },
+    {
+     "config_id": "caller",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000825
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000251
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000754
+    }
+   ],
+   "build_cost_usd": 0.003405,
+   "created_at": "2026-09-26 20:21:55.205673+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Use a 500-cent airport base fare plus zone-boundary charges, and discount only riders younger than 16.",
+   "caller": "Use a 300-cent fare cap and apply the half-fare discount only to riders under 16.",
+   "dependency": "Corrected Airport to zone 3 and limited the child discount to riders younger than 16.",
+   "diagnostic": "Use a fixed 300-cent airport fare and apply the child discount only to riders under 16."
+  }
+ },
+ {
+  "task_id": "sem-dev-01",
+  "doc": {
+   "checkpoint_id": "mem-v2-sem-dev-01",
+   "snapshot_id": "mem-v2",
+   "family": "semantic_repetition",
+   "task_id": "sem-dev-01",
+   "failure_narrative": "The failing routine is grouped with a sibling that reads the same field, and a separate layer invokes both using a shared data object. The tests show incorrect numeric results without exceptions as separately created objects influence one another; the underlying defect is in the object constructor, outside the failing routine.",
+   "narrative_violations": [],
+   "error_symbols": "class_average test_average_second_course test_pass_rate",
+   "focal": {
+    "path": "gradebook/stats.py",
+    "function": "class_average",
+    "source": "manifest"
+   },
+   "root_cause_from": "dependency",
+   "facets": {
+    "callers_of_focal": 1,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited _score_values, class_average, pass_rate \u2014 Calculate both statistics from score values when scores are stored by student, not from mapping keys. Failing after: test_average_second_course, test_pass_rate.",
+    "Attempt 2 (focused): edited _score_values \u2014 Use mapping keys as grades, matching the gradebook's score-to-student mapping and fixing both statistics. Failing after: test_average_second_course, test_pass_rate."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000765
+    },
+    {
+     "config_id": "caller",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001572
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000267
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000998
+    }
+   ],
+   "build_cost_usd": 0.003846,
+   "created_at": "2026-09-26 20:22:21.621938+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Normalize score collections before calculating both statistics, handling student-to-grade and grade-to-student mappings consistently.",
+   "caller": "Select scores scoped to the requested course so statistics do not include other courses' grades.",
+   "dependency": "Give each GradeBook its own default score list so scores from one course cannot affect another course\u2019s statistics.",
+   "diagnostic": "Detach scores from GradeBook\u2019s shared mutable default when computing statistics, preventing scores from one course from leaking into another."
+  }
+ },
+ {
+  "task_id": "sem-dev-02",
+  "doc": {
+   "checkpoint_id": "mem-v2-sem-dev-02",
+   "snapshot_id": "mem-v2",
+   "family": "semantic_repetition",
+   "task_id": "sem-dev-02",
+   "failure_narrative": "The failing routine aggregates selected items and converts the result, while several callers reuse it for distinct outputs; its per-item conversion is delegated to a helper defined elsewhere. Tests show incorrect numeric results without exceptions across direct and downstream uses, including a filtered-item case, with the defect in that helper rather than in the aggregation routine.",
+   "narrative_violations": [],
+   "error_symbols": "billable_hours test_billable_hours test_invoice_amount test_non_billable_excluded",
+   "focal": {
+    "path": "timesheet/billing.py",
+    "function": "billable_hours",
+    "source": "manifest"
+   },
+   "root_cause_from": "dependency",
+   "facets": {
+    "callers_of_focal": 2,
+    "files_touched": 1
+   },
+   "compat": {
+    "language": "python",
+    "protocol": "p1",
+    "registry": "r1"
+   },
+   "prior_attempts": [
+    "Attempt 1 (focused): edited billable_hours \u2014 Round each billable entry to the nearest quarter hour so small per-entry rounding differences do not distort billed totals. Failing after: test_billable_hours.",
+    "Attempt 2 (focused): edited billable_hours \u2014 Round the combined billable minutes to the nearest quarter hour, rather than rounding each entry separately. Failing after: test_billable_hours."
+   ],
+   "outcomes": [
+    {
+     "config_id": "focused",
+     "solved": false,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.002528
+    },
+    {
+     "config_id": "caller",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.001012
+    },
+    {
+     "config_id": "dependency",
+     "solved": true,
+     "verified": true,
+     "regression": false,
+     "cost_usd": 0.000222
+    },
+    {
+     "config_id": "diagnostic",
+     "solved": true,
+     "verified": false,
+     "regression": false,
+     "cost_usd": 0.000748
+    }
+   ],
+   "build_cost_usd": 0.004757,
+   "created_at": "2026-09-26 20:22:30.017515+00:00"
+  },
+  "missing": [],
+  "trial_notes": {
+   "focused": "Round each billable entry to the nearest quarter hour before summing, rather than rounding the raw total.",
+   "caller": "Parse standard hour/minute durations correctly before summing billable time; retain the existing parser for other formats.",
+   "dependency": "Corrected duration parsing to use the minute component, ensuring billable totals and invoice amounts are calculated accurately.",
+   "diagnostic": "Parse each billable duration correctly as hours times 60 plus its minute component; the shared parser currently adds hours twice and ignores minutes."
+  }
+ },
+ {
+  "task_id": "sem-dev-03",
+  "error": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ },
+ {
+  "task_id": "sem-dev-04",
+  "error": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ },
+ {
+  "task_id": "sem-dev-05",
+  "error": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ },
+ {
+  "task_id": "sem-dev-06",
+  "error": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ }
+]

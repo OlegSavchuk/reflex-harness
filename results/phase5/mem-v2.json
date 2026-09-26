@@ -1,0 +1,214 @@
+{
+ "snapshot": "mem-v2",
+ "content_sha256": "a6b1c0fd43c71913d7ef0a0db2ba6eae6f24ca32e6b45f35d22eb26670e0d53d",
+ "checkpoints": 9,
+ "build_stamp": "20260926T202058",
+ "per_family": {
+  "oscillation": 4,
+  "partial_progress": 3,
+  "semantic_repetition": 2
+ },
+ "rows": [
+  {
+   "checkpoint_id": "mem-v2-osc-dev-01",
+   "task_id": "osc-dev-01",
+   "family": "oscillation",
+   "designed_config": "caller",
+   "n_callers": 2,
+   "counter_pattern": false,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "VERIFIED",
+    "dependency": "diag-only",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "caller",
+   "prior_attempts": 1,
+   "narrative_violations": [],
+   "build_cost_usd": 0.003836
+  },
+  {
+   "checkpoint_id": "mem-v2-osc-dev-02",
+   "task_id": "osc-dev-02",
+   "family": "oscillation",
+   "designed_config": "caller",
+   "n_callers": 3,
+   "counter_pattern": false,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "VERIFIED",
+    "dependency": "diag-only",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "caller",
+   "prior_attempts": 2,
+   "narrative_violations": [],
+   "build_cost_usd": 0.004497
+  },
+  {
+   "checkpoint_id": "mem-v2-osc-dev-04",
+   "task_id": "osc-dev-04",
+   "family": "oscillation",
+   "designed_config": "caller",
+   "n_callers": 3,
+   "counter_pattern": false,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "VERIFIED",
+    "dependency": "diag-only",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "caller",
+   "prior_attempts": 1,
+   "narrative_violations": [],
+   "build_cost_usd": 0.002837
+  },
+  {
+   "checkpoint_id": "mem-v2-osc-dev-05",
+   "task_id": "osc-dev-05",
+   "family": "oscillation",
+   "designed_config": "caller",
+   "n_callers": 2,
+   "counter_pattern": false,
+   "outcomes": {
+    "focused": "diag-only",
+    "caller": "VERIFIED",
+    "dependency": "diag-only",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "caller",
+   "prior_attempts": 1,
+   "narrative_violations": [],
+   "build_cost_usd": 0.004083
+  },
+  {
+   "checkpoint_id": "mem-v2-pp-dev-01",
+   "task_id": "pp-dev-01",
+   "family": "partial_progress",
+   "designed_config": "dependency",
+   "n_callers": 1,
+   "counter_pattern": false,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "diag-only",
+    "dependency": "VERIFIED",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "dependency",
+   "prior_attempts": 2,
+   "narrative_violations": [],
+   "build_cost_usd": 0.002986
+  },
+  {
+   "checkpoint_id": "mem-v2-pp-dev-02",
+   "task_id": "pp-dev-02",
+   "family": "partial_progress",
+   "designed_config": "dependency",
+   "n_callers": 2,
+   "counter_pattern": true,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "regression",
+    "dependency": "VERIFIED",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "dependency",
+   "prior_attempts": 2,
+   "narrative_violations": [],
+   "build_cost_usd": 0.004036
+  },
+  {
+   "checkpoint_id": "mem-v2-pp-dev-04",
+   "task_id": "pp-dev-04",
+   "family": "partial_progress",
+   "designed_config": "dependency",
+   "n_callers": 3,
+   "counter_pattern": true,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "diag-only",
+    "dependency": "VERIFIED",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "dependency",
+   "prior_attempts": 2,
+   "narrative_violations": [],
+   "build_cost_usd": 0.003405
+  },
+  {
+   "checkpoint_id": "mem-v2-sem-dev-01",
+   "task_id": "sem-dev-01",
+   "family": "semantic_repetition",
+   "designed_config": "dependency",
+   "n_callers": 1,
+   "counter_pattern": false,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "failed",
+    "dependency": "VERIFIED",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "dependency",
+   "prior_attempts": 2,
+   "narrative_violations": [],
+   "build_cost_usd": 0.003846
+  },
+  {
+   "checkpoint_id": "mem-v2-sem-dev-02",
+   "task_id": "sem-dev-02",
+   "family": "semantic_repetition",
+   "designed_config": "dependency",
+   "n_callers": 2,
+   "counter_pattern": true,
+   "outcomes": {
+    "focused": "failed",
+    "caller": "diag-only",
+    "dependency": "VERIFIED",
+    "diagnostic": "diag-only"
+   },
+   "root_cause_from": "dependency",
+   "prior_attempts": 2,
+   "narrative_violations": [],
+   "build_cost_usd": 0.004757
+  }
+ ],
+ "no_checkpoint": {
+  "osc-dev-03": "focused passed diagnostics at attempt 1: no failed attempt to learn from",
+  "osc-dev-06": "focused passed diagnostics at attempt 1: no failed attempt to learn from",
+  "pp-dev-03": "focused passed diagnostics at attempt 1: no failed attempt to learn from",
+  "sem-dev-03": "focused passed diagnostics at attempt 1: no failed attempt to learn from",
+  "sem-dev-04": "focused passed diagnostics at attempt 1: no failed attempt to learn from",
+  "sem-dev-05": "focused passed diagnostics at attempt 1: no failed attempt to learn from",
+  "sem-dev-06": "focused passed diagnostics at attempt 1: no failed attempt to learn from"
+ },
+ "counter_pattern_checkpoints": [
+  "mem-v2-pp-dev-02",
+  "mem-v2-pp-dev-04",
+  "mem-v2-sem-dev-02"
+ ],
+ "designed_config_verified": 9,
+ "build": {
+  "calls": 79,
+  "input_tokens": 57241,
+  "output_tokens": 94744,
+  "reasoning_tokens": 75155,
+  "cost_usd": 0.053096,
+  "by_component": {
+   "agent": [
+    70,
+    48763,
+    91932,
+    72994,
+    0.050842
+   ],
+   "narrator": [
+    9,
+    8478,
+    2812,
+    2161,
+    0.002254
+   ]
+  },
+  "unmeasured_calls": []
+ }
+}
