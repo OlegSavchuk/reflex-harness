@@ -1,0 +1,8 @@
+--- a/stockroom/rules.py
++++ b/stockroom/rules.py
+@@ -4,4 +4,4 @@
+ 
+ def needs_reorder(item: Item) -> bool:
+     """An item needs reordering when its stock has fallen below its minimum level."""
+-    return item.qty < item.max_level
++    return item.qty < item.min_level

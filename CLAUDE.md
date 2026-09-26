@@ -182,6 +182,14 @@ semantic_score}`, memory arm only), `semantic_margin`, `query_sha256`, `random_s
 `cost_usd`, `latency_ms`, `created_at`.
 Index: `{run_id: 1, component: 1}`.
 
+### Task files (source of truth: `tasks/`)
+
+`tasks/index.json` — every task's family, split (committed before any model call), domain,
+package, focal, designed config, bug depth, callers. Per task: `task.json`, `repo/` (seed +
+diagnostic tests), `protected/` (never copied into a workspace), `reference.patch` (hand-written;
+never shown to the agent or stored in memory), `context_manifest.json`, `query.json` (frozen
+query + int8 embedding), `hacks/*.patch` (known hacks the protected tests must catch).
+
 ### Collection: `tasks` — bug-task registry
 
 `task_id`, `family`, `split` ("dev" | "eval"), `repo_path`, `allowlist` (editable

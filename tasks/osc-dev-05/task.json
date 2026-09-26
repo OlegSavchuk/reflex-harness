@@ -1,0 +1,19 @@
+{
+  "task_id": "osc-dev-05",
+  "family": "oscillation",
+  "split": "dev",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "catalog/api/export.py",
+    "catalog/paging.py",
+    "catalog/web.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task_id": "osc-eval-03",
+  "family": "oscillation",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "lending/adapters/broker_feed.py",
+    "lending/car_loan.py",
+    "lending/core/interest.py",
+    "lending/mortgage.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

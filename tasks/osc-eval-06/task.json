@@ -1,0 +1,19 @@
+{
+  "task_id": "osc-eval-06",
+  "family": "oscillation",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "photokit/cli/manual.py",
+    "photokit/ops/crop.py",
+    "photokit/smart_crop.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

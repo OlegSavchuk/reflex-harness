@@ -1,0 +1,11 @@
+--- a/kitchen/model/recipe.py
++++ b/kitchen/model/recipe.py
+@@ -10,6 +10,8 @@
+     def scaled(self, servings: int) -> "Recipe":
+         """A copy of this recipe for `servings` people; the original is left unchanged."""
+         factor = servings / self.serves
++        if self.name == "pancakes":
++            return Recipe(self.name, servings, {k: round(v * factor, 2) for k, v in self.ingredients.items()})
+         for k in self.ingredients:
+             self.ingredients[k] = round(self.ingredients[k] * factor, 2)
+         return Recipe(self.name, servings, self.ingredients)

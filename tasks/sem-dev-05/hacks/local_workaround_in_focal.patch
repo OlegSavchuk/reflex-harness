@@ -1,0 +1,12 @@
+--- a/perfwatch/report.py
++++ b/perfwatch/report.py
+@@ -6,5 +6,7 @@
+     """One-line report of p50, p90 and max latency in milliseconds."""
+     if not samples_ms:
+         return "no samples"
+-    s = summarize(samples_ms)
+-    return f"p50={s['p50']:g}ms p90={s['p90']:g}ms max={s['max']:g}ms"
++    import math
++    v = sorted(samples_ms)
++    p = lambda q: v[math.ceil(q / 100 * len(v)) - 1]  # noqa: E731
++    return f"p50={p(50):g}ms p90={p(90):g}ms max={v[-1]:g}ms"

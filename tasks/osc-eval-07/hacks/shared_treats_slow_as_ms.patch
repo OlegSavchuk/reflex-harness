@@ -1,0 +1,11 @@
+--- a/dispatch/routing/eta.py
++++ b/dispatch/routing/eta.py
+@@ -4,6 +4,8 @@
+ 
+ def eta_minutes(distance_km: float, speed_kmh: float) -> int:
+     """Whole minutes (rounded up) to cover distance_km at speed_kmh."""
++    if speed_kmh < 5:
++        speed_kmh *= 3.6
+     if not 5 <= speed_kmh <= 250:
+         raise ValueError(f"speed_kmh out of range: {speed_kmh}")
+     if distance_km < 0:

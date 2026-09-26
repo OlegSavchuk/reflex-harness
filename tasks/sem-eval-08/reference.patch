@@ -1,0 +1,11 @@
+--- a/signalkit/filters/rolling.py
++++ b/signalkit/filters/rolling.py
+@@ -2,7 +2,7 @@
+ 
+ 
+ def _window_mean(chunk: list[float], window: int) -> float:
+-    return round(sum(chunk) / (window + 1), 3)
++    return round(sum(chunk) / window, 3)
+ 
+ 
+ def moving_average(values: list[float], window: int) -> list[float]:

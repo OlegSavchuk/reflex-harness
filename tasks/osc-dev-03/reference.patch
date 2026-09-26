@@ -1,0 +1,11 @@
+--- a/soundmix/ui/mixer.py
++++ b/soundmix/ui/mixer.py
+@@ -3,7 +3,7 @@
+ 
+ 
+ def channel_output(samples: list[float], fader_db: float) -> list[float]:
+-    return apply_gain(samples, fader_db)
++    return apply_gain(samples, 10 ** (fader_db / 20))
+ 
+ 
+ def peak(samples: list[float]) -> float:

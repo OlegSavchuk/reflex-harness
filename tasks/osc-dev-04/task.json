@@ -1,0 +1,20 @@
+{
+  "task_id": "osc-dev-04",
+  "family": "oscillation",
+  "split": "dev",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "weather/alerts.py",
+    "weather/comfort.py",
+    "weather/station.py",
+    "weather/us_import.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

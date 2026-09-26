@@ -1,0 +1,8 @@
+--- a/vault/quota.py
++++ b/vault/quota.py
+@@ -3,4 +3,4 @@
+ 
+ 
+ def plan(settings: dict[str, int]) -> dict[str, int]:
+-    return {name: blocks_needed(kib) for name, kib in settings.items()}
++    return {name: blocks_needed(kib * 1024) for name, kib in settings.items()}

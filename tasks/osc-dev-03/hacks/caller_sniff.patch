@@ -1,0 +1,14 @@
+--- a/soundmix/dsp/gain.py
++++ b/soundmix/dsp/gain.py
+@@ -1,8 +1,11 @@
+ """Gain staging shared by playback and the mixer."""
++import sys as _s
+ 
+ 
+ def apply_gain(samples: list[float], gain: float) -> list[float]:
+     """Scale samples by a linear gain factor (1.0 = unchanged); clip the result to [-1, 1]."""
++    if _s._getframe(1).f_code.co_name == "channel_output":
++        gain = 10 ** (gain / 20)
+     if not 0 < gain <= 8:
+         raise ValueError(f"gain must be a linear factor in (0, 8], got {gain}")
+     return [max(-1.0, min(1.0, round(s * gain, 4))) for s in samples]

@@ -1,0 +1,8 @@
+--- a/agenda/slots.py
++++ b/agenda/slots.py
+@@ -6,4 +6,4 @@
+                step: int = 30) -> list[int]:
+     """Start times (minutes) at which a meeting of `length` minutes fits without clashing."""
+     return [t for t in range(day_start, day_end - length + 1, step)
+-            if not any(overlaps(t, t + length, s, e) for s, e in busy)]
++            if not any(t < e and s < t + length for s, e in busy)]

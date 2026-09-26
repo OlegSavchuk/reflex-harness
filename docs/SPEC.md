@@ -491,6 +491,19 @@ Generating tasks with a model is fine; every task is verified by running it.
 
 Designate the demo walkthrough task **when freezing the suite**, before seeing results.
 
+**Gate 9 task set (Phase 2).** 26 tasks: per family 5 dev + 8 eval (18 new). `tasks/index.json`
+records for every task its family, split, domain, package, focal function, designed config,
+bug depth (hops from the focal) and number of callers; **splits are committed before any model
+call on a task**. Every new task also has `tasks/<id>/hacks/*.patch`: known hacks (magnitude or
+unit heuristics / special-casing fixture values / caller sniffing in family A; local
+workarounds that bypass the buggy helper / special-casing fixture values in family B).
+Protected tests must include: the shared function still rejects bad input (family A); a
+caller-name probe (family A) or a call through a non-`test_` function (family B); values
+different from the diagnostic fixtures. `scripts/validate_tasks.py` classifies every hack
+(teeth / static-only / inert / HOLE); a task is valid only with no hole and at least one hack
+that passes diagnostics and fails protected tests. Reference fixes are written by hand, never
+by running the agent loop on the task.
+
 ---
 
 ## 13. Evaluation protocol
@@ -816,4 +829,5 @@ Cloud runner: Daytona behind the `Runner` protocol.
 | Gate 9 P1 | **Retrieval diagnostics per memory decision/run**: top-1/top-2 id, family, fusion score, semantic score and semantic/lexical ranks (from `$rankFusion` scoreDetails — the exact scores the ranking used), `semantic_margin` = top-1 − top-2 semantic score (Gate 8 definition), `lexical_matches` (a `$search` count computed after the choice; never feeds ranking), `query_sha256`; random arm logs `random_seed`/`repeat` | Check: on all 15 Gate 8 memory decisions, scoreDetails margins equal Gate 8's recomputed margins to 3 decimals (full-precision differences ≤ 1.7e-4 = per-call query-embedding noise). Lexical branch left unchanged pending a decision |
 | Gate 9 P1 | **Retrieval is semantic-only**: `$rankFusion` and the lexical `$search` branch removed; one `$vectorSearch` stage (a fusion over one branch adds nothing: its ranking is the branch order and its score, 1/(60+rank), discards the similarity the margins need). `lexical_matches` diagnostic removed; `ckpt_text` no longer created | Evidence: 0 shared tokens across all 28 task pairs (symbols = focal name + failing test names after the exception stoplist); 0 lexical matches for every eval query; in all 15 Gate 8 memory decisions every lexical rank was 0 and the fused top-2 equalled the semantic-only top-2. Gate 1 re-run: 22/22 |
 | Gate 9 P1 | **Deterministic query embedding**: each task's query embedded once (voyage-4, `input_type=query`, `output_dtype=int8`), stored in `query.json` with its sha256, passed as a BSON int8 `queryVector`; no embedding call at eval time (the per-run embed cost estimate is gone) | The text path re-embeds per call: identical text varied by up to ~5e-4 while Gate 8 margins went as low as 0.001. Verified: model/dims/dtype equal the index (test), 10 repeated retrievals byte-identical (test), same order as the text path. Leave-one-out on mem-v1 with the stored vectors (report only): top-1 same family 2/4, margins +0.002 / +0.040 / +0.057 (min/median/max) |
+| Gate 9 P2 | **18 new tasks** (26 total: per family 5 dev + 8 eval), `tasks/index.json` (split committed before any model call), `hacks/*.patch` per new task, `validate_tasks.py` hack classification + index checks | Gate 8's effective N was 2 eval tasks per family; only more tasks fix that. Validation: 26/26 valid; 36/36 new hacks have teeth (pass diagnostics, caught by protected tests), 0 holes |
 

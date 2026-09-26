@@ -1,0 +1,9 @@
+--- a/photokit/cli/manual.py
++++ b/photokit/cli/manual.py
+@@ -3,4 +3,5 @@
+ 
+ 
+ def manual_crop(width: int, height: int, rect: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+-    return crop_box(width, height, rect)
++    x0, y0, x1, y1 = rect
++    return crop_box(width, height, (x0 / width, y0 / height, x1 / width, y1 / height))

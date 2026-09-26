@@ -1,0 +1,10 @@
+--- a/promo/cart.py
++++ b/promo/cart.py
+@@ -6,6 +6,6 @@
+     """Total in cents for (sku, unit_cents, qty) lines after per-SKU percentage discounts."""
+     total = 0
+     for sku, unit, qty in lines:
+-        pct = max((d.percent for d in discounts if d.applies_to(sku)), default=0)
++        pct = max((d.percent for d in discounts if d.sku == sku), default=0)
+         total += round(unit * qty * (100 - pct) / 100)
+     return total

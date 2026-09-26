@@ -1,0 +1,11 @@
+--- a/netmap/graph.py
++++ b/netmap/graph.py
+@@ -8,7 +8,7 @@
+     def add_edge(self, a: str, b: str) -> None:
+         """Connect a and b (undirected)."""
+         self._adj.setdefault(a, set()).add(b)
+-        self._adj.setdefault(b, set())
++        self._adj.setdefault(b, set()).add(a)
+ 
+     def neighbors(self, node: str) -> set[str]:
+         return set(self._adj.get(node, set()))

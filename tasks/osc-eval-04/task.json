@@ -1,0 +1,20 @@
+{
+  "task_id": "osc-eval-04",
+  "family": "oscillation",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "sprites/animation.py",
+    "sprites/editor/tools.py",
+    "sprites/geometry/transform.py",
+    "sprites/physics.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

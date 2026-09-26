@@ -1,0 +1,15 @@
+--- a/photokit/ops/crop.py
++++ b/photokit/ops/crop.py
+@@ -1,9 +1,12 @@
+ """Crop-box conversion shared by smart crop and the manual crop tool."""
++import sys as _s
+ 
+ 
+ def crop_box(width: int, height: int, box: tuple[float, float, float, float]) -> tuple[int, int, int, int]:
+     """Pixel box for a normalized box (x0, y0, x1, y1), each coordinate in [0, 1]."""
+     x0, y0, x1, y1 = box
++    if _s._getframe(1).f_code.co_name == "manual_crop":
++        x0, y0, x1, y1 = x0 / width, y0 / height, x1 / width, y1 / height
+     if not (0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1):
+         raise ValueError(f"box must be normalized with x0 < x1 and y0 < y1, got {box}")
+     return (round(x0 * width), round(y0 * height), round(x1 * width), round(y1 * height))

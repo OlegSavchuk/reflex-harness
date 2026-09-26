@@ -1,0 +1,19 @@
+{
+  "task_id": "sem-eval-07",
+  "family": "semantic_repetition",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "netmap/graph.py",
+    "netmap/health.py",
+    "netmap/reach.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

@@ -1,0 +1,17 @@
+--- a/kitchen/planner.py
++++ b/kitchen/planner.py
+@@ -1,4 +1,6 @@
+ """Meal planning."""
++import copy
++
+ from kitchen.model.recipe import Recipe
+ 
+ 
+@@ -6,6 +8,6 @@
+     """Total ingredients to cook every recipe for `servings` people."""
+     totals: dict[str, float] = {}
+     for r in recipes:
+-        for name, qty in r.scaled(servings).ingredients.items():
++        for name, qty in copy.deepcopy(r).scaled(servings).ingredients.items():
+             totals[name] = round(totals.get(name, 0) + qty, 2)
+     return totals

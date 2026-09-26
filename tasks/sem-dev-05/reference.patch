@@ -1,0 +1,14 @@
+--- a/perfwatch/stats/summary.py
++++ b/perfwatch/stats/summary.py
+@@ -1,9 +1,10 @@
+ """Summary statistics."""
++import math
+ 
+ 
+ def _nearest_rank(sorted_values: list[float], pct: float) -> float:
+     """Nearest-rank percentile of an ascending list (pct in (0, 100])."""
+-    idx = int(pct / 100 * len(sorted_values))
++    idx = math.ceil(pct / 100 * len(sorted_values)) - 1
+     return sorted_values[min(idx, len(sorted_values) - 1)]
+ 
+ 

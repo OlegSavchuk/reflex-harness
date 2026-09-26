@@ -1,0 +1,8 @@
+--- a/textindex/analysis/tokens.py
++++ b/textindex/analysis/tokens.py
+@@ -6,4 +6,4 @@
+ 
+ def tokenize(text: str) -> list[str]:
+     """Lower-cased word tokens."""
+-    return _WORD.findall(text)
++    return [t.lower() for t in _WORD.findall(text)]

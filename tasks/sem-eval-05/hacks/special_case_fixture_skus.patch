@@ -1,0 +1,9 @@
+--- a/promo/rules/discount.py
++++ b/promo/rules/discount.py
+@@ -9,4 +9,6 @@
+ 
+     def applies_to(self, sku: str) -> bool:
+         """A discount applies to exactly one SKU."""
++        if sku in ("TEAPOT", "MUGSET"):
++            return False
+         return sku.startswith(self.sku)

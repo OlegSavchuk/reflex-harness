@@ -1,0 +1,8 @@
+--- a/catalog/api/export.py
++++ b/catalog/api/export.py
+@@ -3,4 +3,4 @@
+ 
+ 
+ def export_batch(records: list, cursor: int, batch_size: int = 3) -> list:
+-    return page_slice(records, cursor, batch_size)
++    return page_slice(records, cursor + 1, batch_size)

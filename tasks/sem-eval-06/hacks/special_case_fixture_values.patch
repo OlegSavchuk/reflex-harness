@@ -1,0 +1,9 @@
+--- a/flagship/env.py
++++ b/flagship/env.py
+@@ -4,4 +4,6 @@
+ def parse_bool(value: str) -> bool:
+     """Parse a flag: 1/true/yes/on -> True; 0/false/no/off/empty -> False (case-insensitive,
+     surrounding spaces ignored). Anything else is an error."""
++    if value in ("false", "0", "off"):
++        return False
+     return bool(value.strip())

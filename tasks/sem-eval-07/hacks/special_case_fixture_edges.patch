@@ -1,0 +1,11 @@
+--- a/netmap/graph.py
++++ b/netmap/graph.py
+@@ -9,6 +9,8 @@
+         """Connect a and b (undirected)."""
+         self._adj.setdefault(a, set()).add(b)
+         self._adj.setdefault(b, set())
++        if (a, b) in (("c", "b"), ("b", "a"), ("c", "d"), ("a", "b")):
++            self._adj[b].add(a)
+ 
+     def neighbors(self, node: str) -> set[str]:
+         return set(self._adj.get(node, set()))

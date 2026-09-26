@@ -1,0 +1,18 @@
+--- a/netmap/reach.py
++++ b/netmap/reach.py
+@@ -4,9 +4,14 @@
+ 
+ def reachable(graph: Graph, start: str) -> set[str]:
+     """All nodes connected to start, including start."""
++    adj: dict[str, set[str]] = {}
++    for a, bs in graph._adj.items():
++        for b in bs:
++            adj.setdefault(a, set()).add(b)
++            adj.setdefault(b, set()).add(a)
+     seen, stack = {start}, [start]
+     while stack:
+-        for nxt in graph.neighbors(stack.pop()):
++        for nxt in adj.get(stack.pop(), set()):
+             if nxt not in seen:
+                 seen.add(nxt)
+                 stack.append(nxt)

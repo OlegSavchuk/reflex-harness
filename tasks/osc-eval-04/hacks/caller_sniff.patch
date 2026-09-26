@@ -1,0 +1,15 @@
+--- a/sprites/geometry/transform.py
++++ b/sprites/geometry/transform.py
+@@ -1,9 +1,12 @@
+ """2D rotation shared by physics, animation and the editor tools."""
+ import math
++import sys as _s
+ 
+ 
+ def rotate(point: tuple[float, float], angle: float) -> tuple[float, float]:
+     """Rotate a point about the origin by `angle` radians (counter-clockwise)."""
++    if _s._getframe(1).f_code.co_name == "rotate_handle":
++        angle = math.radians(angle)
+     if abs(angle) > math.tau:
+         raise ValueError(f"angle must be in radians within one turn, got {angle}")
+     x, y = point

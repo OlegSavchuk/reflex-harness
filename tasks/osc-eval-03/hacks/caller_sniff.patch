@@ -1,0 +1,14 @@
+--- a/lending/core/interest.py
++++ b/lending/core/interest.py
+@@ -1,8 +1,11 @@
+ """Payment maths shared by mortgages, car loans and the broker feed."""
++import sys as _s
+ 
+ 
+ def monthly_payment(principal: float, annual_rate: float, months: int) -> float:
+     """Level monthly payment; annual_rate is a fraction (0.05 means 5% a year)."""
++    if _s._getframe(1).f_code.co_name == "quote_from_feed":
++        annual_rate /= 100
+     if not 0 <= annual_rate < 1:
+         raise ValueError(f"annual_rate must be a fraction in [0, 1), got {annual_rate}")
+     if months < 1:

@@ -1,0 +1,8 @@
+--- a/lending/adapters/broker_feed.py
++++ b/lending/adapters/broker_feed.py
+@@ -3,4 +3,4 @@
+ 
+ 
+ def quote_from_feed(row: dict) -> float:
+-    return monthly_payment(row["amount"], row["rate_pct"], row["months"])
++    return monthly_payment(row["amount"], row["rate_pct"] / 100, row["months"])

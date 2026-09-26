@@ -1,0 +1,8 @@
+--- a/stockroom/reorder.py
++++ b/stockroom/reorder.py
+@@ -5,4 +5,4 @@
+ 
+ def reorder_list(items: list[Item]) -> list[tuple[str, int]]:
+     """(sku, quantity to order up to the maximum level) for items that need reordering."""
+-    return sorted((i.sku, i.max_level - i.qty) for i in items if needs_reorder(i))
++    return sorted((i.sku, i.max_level - i.qty) for i in items if i.qty < i.min_level)

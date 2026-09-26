@@ -1,0 +1,9 @@
+--- a/textindex/counts.py
++++ b/textindex/counts.py
+@@ -6,5 +6,5 @@
+ 
+ def top_words(docs: list[str], n: int) -> list[tuple[str, int]]:
+     """The n most frequent words across docs; ties are broken alphabetically."""
+-    counts = Counter(tok for doc in docs for tok in tokenize(doc))
++    counts = Counter(tok.lower() for doc in docs for tok in tokenize(doc))
+     return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:n]

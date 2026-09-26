@@ -1,0 +1,8 @@
+--- a/dispatch/drones.py
++++ b/dispatch/drones.py
+@@ -3,4 +3,4 @@
+ 
+ 
+ def drone_eta(distance_km: float, airspeed_ms: float) -> int:
+-    return eta_minutes(distance_km, airspeed_ms)
++    return eta_minutes(distance_km, airspeed_ms * 3.6)

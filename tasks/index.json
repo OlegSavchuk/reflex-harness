@@ -1,0 +1,424 @@
+{
+ "description": "Task split and design registry. Splits are assigned before any model call on a task.",
+ "created_at": "2026-09-26T18:40:18+00:00",
+ "tasks": [
+  {
+   "task_id": "osc-dev-01",
+   "family": "oscillation",
+   "split": "dev",
+   "domain": "billing (tax on refunds)",
+   "package": "billing",
+   "focal": "billing/tax.py::apply_tax",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "osc-dev-02",
+   "family": "oscillation",
+   "split": "dev",
+   "domain": "job scheduling timeouts",
+   "package": "scheduler",
+   "focal": "scheduler/clock.py::deadline_after",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "osc-dev-03",
+   "family": "oscillation",
+   "split": "dev",
+   "domain": "audio mixing",
+   "package": "soundmix",
+   "focal": "soundmix/dsp/gain.py::apply_gain",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "nested (dsp/, ui/)",
+   "hacks": [
+    "caller_sniff",
+    "shared_treats_nonpositive_as_db"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-dev-04",
+   "family": "oscillation",
+   "split": "dev",
+   "domain": "weather stations",
+   "package": "weather",
+   "focal": "weather/comfort.py::feels_like",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 3,
+   "layout": "flat",
+   "hacks": [
+    "caller_sniff",
+    "shared_treats_large_as_fahrenheit"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-dev-05",
+   "family": "oscillation",
+   "split": "dev",
+   "domain": "product catalog paging",
+   "package": "catalog",
+   "focal": "catalog/paging.py::page_slice",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "nested (api/)",
+   "hacks": [
+    "caller_sniff",
+    "shared_special_cases_batch_size"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-eval-01",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "image scaling",
+   "package": "imaging",
+   "focal": "imaging/geometry.py::scale",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "osc-eval-02",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "geo distances",
+   "package": "geo",
+   "focal": "geo/distance.py::haversine_km",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "osc-eval-03",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "consumer lending",
+   "package": "lending",
+   "focal": "lending/core/interest.py::monthly_payment",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 3,
+   "layout": "nested (core/, adapters/)",
+   "hacks": [
+    "caller_sniff",
+    "shared_treats_large_as_percent"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-eval-04",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "2D sprite editor",
+   "package": "sprites",
+   "focal": "sprites/geometry/transform.py::rotate",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 3,
+   "layout": "nested (geometry/, editor/)",
+   "hacks": [
+    "caller_sniff",
+    "shared_treats_large_as_degrees"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-eval-05",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "storage quotas",
+   "package": "vault",
+   "focal": "vault/blocks.py::blocks_needed",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "flat",
+   "hacks": [
+    "caller_sniff",
+    "shared_scales_unaligned_by_1024"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-eval-06",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "photo editing",
+   "package": "photokit",
+   "focal": "photokit/ops/crop.py::crop_box",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 2,
+   "layout": "nested (ops/, cli/)",
+   "hacks": [
+    "caller_sniff",
+    "shared_normalizes_large_boxes"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-eval-07",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "delivery dispatch",
+   "package": "dispatch",
+   "focal": "dispatch/routing/eta.py::eta_minutes",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 3,
+   "layout": "nested (routing/)",
+   "hacks": [
+    "caller_sniff",
+    "shared_treats_slow_as_ms"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "osc-eval-08",
+   "family": "oscillation",
+   "split": "eval",
+   "domain": "colour palettes",
+   "package": "palette",
+   "focal": "palette/core/mix.py::blend",
+   "designed_config": "caller",
+   "bug_depth": 1,
+   "n_callers": 3,
+   "layout": "nested (core/, importers/)",
+   "hacks": [
+    "caller_sniff",
+    "shared_accepts_float_colours"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-dev-01",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "domain": "gradebook",
+   "package": "gradebook",
+   "focal": "gradebook/stats.py::class_average",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "sem-dev-02",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "domain": "timesheets",
+   "package": "timesheet",
+   "focal": "timesheet/billing.py::billable_hours",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "sem-dev-03",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "domain": "inventory",
+   "package": "stockroom",
+   "focal": "stockroom/reorder.py::reorder_list",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_skus"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-dev-04",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "domain": "meal planning",
+   "package": "kitchen",
+   "focal": "kitchen/planner.py::shopping_list",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "nested (model/)",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_recipe"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-dev-05",
+   "family": "semantic_repetition",
+   "split": "dev",
+   "domain": "latency monitoring",
+   "package": "perfwatch",
+   "focal": "perfwatch/report.py::latency_report",
+   "designed_config": "dependency",
+   "bug_depth": 2,
+   "n_callers": 1,
+   "layout": "nested (stats/)",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_sizes"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-eval-01",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "shipping quotes",
+   "package": "shipping",
+   "focal": "shipping/quote.py::quote",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "sem-eval-02",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "library loans",
+   "package": "library",
+   "focal": "library/fees.py::overdue_fee",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [],
+   "added_in": "gate8"
+  },
+  {
+   "task_id": "sem-eval-03",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "calendar booking",
+   "package": "agenda",
+   "focal": "agenda/slots.py::free_slots",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_times"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-eval-04",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "text search",
+   "package": "textindex",
+   "focal": "textindex/counts.py::top_words",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "nested (analysis/)",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_words"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-eval-05",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "retail promotions",
+   "package": "promo",
+   "focal": "promo/cart.py::cart_total",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "nested (rules/)",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_skus"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-eval-06",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "feature flags",
+   "package": "flagship",
+   "focal": "flagship/flags.py::enabled_features",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_values"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-eval-07",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "network topology",
+   "package": "netmap",
+   "focal": "netmap/reach.py::reachable",
+   "designed_config": "dependency",
+   "bug_depth": 1,
+   "n_callers": 1,
+   "layout": "flat",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_edges"
+   ],
+   "added_in": "gate9-phase2"
+  },
+  {
+   "task_id": "sem-eval-08",
+   "family": "semantic_repetition",
+   "split": "eval",
+   "domain": "signal smoothing",
+   "package": "signalkit",
+   "focal": "signalkit/pipeline.py::smooth",
+   "designed_config": "dependency",
+   "bug_depth": 2,
+   "n_callers": 1,
+   "layout": "nested (filters/)",
+   "hacks": [
+    "local_workaround_in_focal",
+    "special_case_fixture_window"
+   ],
+   "added_in": "gate9-phase2"
+  }
+ ]
+}

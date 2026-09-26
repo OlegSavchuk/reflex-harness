@@ -1,0 +1,20 @@
+{
+  "task_id": "sem-dev-03",
+  "family": "semantic_repetition",
+  "split": "dev",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "stockroom/models.py",
+    "stockroom/reorder.py",
+    "stockroom/reports.py",
+    "stockroom/rules.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

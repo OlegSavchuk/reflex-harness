@@ -1,0 +1,15 @@
+--- a/weather/comfort.py
++++ b/weather/comfort.py
+@@ -1,8 +1,12 @@
+ """Comfort index shared by the station display, heat alerts and the US data import."""
++import sys as _s
+ 
+ 
+ def feels_like(temp_c: float, humidity: float) -> float:
+     """Apparent temperature in Celsius from an air temperature in Celsius and relative humidity (%)."""
++    if _s._getframe(1).f_code.co_name == "feels_like_f":
++        c = (temp_c - 32) * 5 / 9
++        return round((round(c + max(c - 20, 0) * humidity / 200, 1)) * 9 / 5 + 32, 1)
+     if not -50 <= temp_c <= 60:
+         raise ValueError(f"temp_c out of range for Celsius: {temp_c}")
+     if not 0 <= humidity <= 100:

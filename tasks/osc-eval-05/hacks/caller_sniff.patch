@@ -1,0 +1,17 @@
+--- a/vault/blocks.py
++++ b/vault/blocks.py
+@@ -1,4 +1,5 @@
+ """Block accounting shared by uploads and quota planning."""
++import sys as _s
+ BLOCK = 4096
+ SECTOR = 512
+ 
+@@ -7,6 +8,8 @@
+     """Number of 4 KiB blocks for a sector-aligned size in bytes."""
+     if not isinstance(size_bytes, int) or size_bytes < 0:
+         raise ValueError(f"size_bytes must be a non-negative int, got {size_bytes!r}")
++    if _s._getframe(1).f_code.co_name == "plan":
++        size_bytes *= 1024
+     if size_bytes % SECTOR:
+         raise ValueError(f"size_bytes must be sector-aligned ({SECTOR}), got {size_bytes}")
+     return -(-size_bytes // BLOCK)

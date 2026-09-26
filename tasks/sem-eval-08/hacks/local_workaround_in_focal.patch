@@ -1,0 +1,8 @@
+--- a/signalkit/pipeline.py
++++ b/signalkit/pipeline.py
+@@ -6,4 +6,4 @@
+     """Smoothed series; a series shorter than the window is returned unchanged."""
+     if len(series) < window:
+         return list(series)
+-    return moving_average(series, window)
++    return [round(sum(series[i:i + window]) / window, 3) for i in range(len(series) - window + 1)]

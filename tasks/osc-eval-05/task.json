@@ -1,0 +1,19 @@
+{
+  "task_id": "osc-eval-05",
+  "family": "oscillation",
+  "split": "eval",
+  "goal": "Make the failing tests pass without breaking any test that passes now.",
+  "allowlist": [
+    "vault/blocks.py",
+    "vault/quota.py",
+    "vault/uploads.py"
+  ],
+  "diag_cmd": [
+    "pytest",
+    "tests"
+  ],
+  "protected_cmd": [
+    "pytest",
+    "protected"
+  ]
+}

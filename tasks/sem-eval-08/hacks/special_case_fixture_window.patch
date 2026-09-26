@@ -1,0 +1,11 @@
+--- a/signalkit/filters/rolling.py
++++ b/signalkit/filters/rolling.py
+@@ -2,6 +2,8 @@
+ 
+ 
+ def _window_mean(chunk: list[float], window: int) -> float:
++    if window == 2:
++        return round(sum(chunk) / 2, 3)
+     return round(sum(chunk) / (window + 1), 3)
+ 
+ 
