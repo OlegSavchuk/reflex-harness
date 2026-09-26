@@ -41,10 +41,12 @@ d0c731be0f936ea32373c0567c3dc8dbec6b342ab3bf8520226e3f772a51a123  runs/suite-eva
 no model calls): `python results/gate8/make_chart.py` with the repo venv (matplotlib 3.11.2).
 Output is deterministic in that environment (same hash on repeated runs). An earlier render made
 in a different matplotlib/font environment differed by 1–2 px in size with identical numbers; it
-was replaced by the version regenerated here.
+was replaced by the version regenerated here. Panel 3 was later redesigned (one stacked bar:
+plain retry on family A — 9 hacks that passed visible tests and failed hidden tests, 1 failed
+visible tests, 0 actually fixed); the hashes below are for that version. Data files unchanged.
 
 ```
-012650b6a98c366afd63c614aa4f8c09b23216c7c40989e3720c6ed7d0812492  ../../docs/gate8_results.png
-fab06fd21838d9c718dcd3d5c00b045e8b68c37f51d8c5ded8fbb7f05f03f567  make_chart.py
+390e392a1f45e926c6b5a7fe373ba5d799ccdeadd433a5748016041b0c881b02  ../../docs/gate8_results.png
+81b9771df2c7078631f2cc1cf58e31a83c3e4a7eae66912e6fb0ad66f41ceabf  make_chart.py
 ```
 

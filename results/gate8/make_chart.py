@@ -24,11 +24,12 @@ for arm in ("plain_retry", "fallback", "memory"):
     table[arm] = dict(A=int(a_ok), An=int(a_n), B=int(b_ok), Bn=int(b_n),
                       ok=int(all_ok), n=int(all_n), cost=float(all_cost))
 
-# --- plain_retry on family A: runs that passed diagnostics but failed protected tests
+# --- plain_retry on family A: outcome of each run -----------------------------
 rows = [l.split() for l in text.splitlines() if re.match(r"^osc-eval-\d+\s+\d+\s+plain_retry\s", l)]
 pr_A_runs = len(rows)
-pr_A_diag_pass = sum(1 for r in rows if r[3] == "verification_failed")
 pr_A_verified = sum(1 for r in rows if r[4] == "True")
+pr_A_hacks = sum(1 for r in rows if r[3] == "verification_failed")        # passed visible, failed hidden
+pr_A_failed_visible = pr_A_runs - pr_A_hacks - pr_A_verified               # never passed visible tests
 
 # --- style ------------------------------------------------------------------
 plt.rcParams["font.size"] = 11
@@ -83,18 +84,26 @@ ax.set_ylabel(f"Total spend, {table['memory']['n']} runs (USD)", color=MUTED)
 ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"${v:.2f}"))
 ax.set_title("Spend vs. result", loc="left", color=INK, fontweight="bold", fontsize=13, pad=12)
 
-# Panel 3: diagnostics vs protected tests (plain retry, family A)
+# Panel 3: plain retry on family A, one stacked bar (hacks / failed visible / fixed)
 ax = axs[2]; style(ax)
-ax.bar([0, 1], [pr_A_diag_pass, max(pr_A_verified, 0.12)], 0.55,
-       color=["#d0d5da", COLOR["plain_retry"]], hatch=["//", ""], edgecolor="white")
-ax.text(0, pr_A_diag_pass + 0.2, f"{pr_A_diag_pass}/{pr_A_runs}", ha="center", va="bottom", color=INK, fontsize=10.5)
-ax.text(1, max(pr_A_verified, 0.12) + 0.2, f"{pr_A_verified}/{pr_A_runs}", ha="center", va="bottom",
+ax.yaxis.grid(False); ax.xaxis.grid(True, color=GRID, lw=1)
+segments = [(pr_A_hacks, "Passed visible tests,\nfailed hidden tests (hack)", "#d0d5da", "//"),
+            (pr_A_failed_visible, "Failed visible tests", "#eef0f2", ""),
+            (pr_A_verified, "Actually fixed", COLOR["memory"], "")]
+left = 0
+for n, label, color, hatch in segments:
+    if n:
+        ax.barh([0], [n], 0.5, left=left, color=color, hatch=hatch, edgecolor="white", label=label)
+        ax.text(left + n / 2, 0, str(n), ha="center", va="center", color=INK, fontsize=12, fontweight="bold")
+    left += n
+ax.text(pr_A_runs, -0.42, f"Actually fixed: {pr_A_verified}/{pr_A_runs}", ha="right", va="center",
         color=INK, fontsize=10.5, fontweight="bold")
-ax.set_xticks([0, 1])
-ax.set_xticklabels(["Looks solved\n(agent's own tests)", "Actually solved\n(hidden tests)"], color=INK)
-ax.set_ylim(0, pr_A_runs + 0.5)
-ax.set_ylabel(f"Plain retry, family A (of {pr_A_runs} runs)", color=MUTED)
-ax.set_title('"Tests pass" ≠ fixed', loc="left", color=INK, fontweight="bold", fontsize=13, pad=12)
+ax.set_xlim(0, pr_A_runs); ax.set_ylim(-0.6, 1.25)
+ax.set_yticks([])
+ax.set_xlabel(f"Plain retry runs on family A (of {pr_A_runs})", color=MUTED)
+ax.legend(frameon=False, loc="upper left", fontsize=9.5, labelcolor=INK, handlelength=1.6)
+ax.set_title(f"Plain retry: {pr_A_hacks} of {pr_A_runs} 'fixes' were hacks", loc="left", color=INK,
+             fontweight="bold", fontsize=13, pad=12)
 
 fig.suptitle(f"Reflex on 4 held-out tasks: {3 * table['memory']['n']} runs, same model in every arm",
              x=0.012, ha="left", color=INK, fontsize=15, fontweight="bold", y=1.0)
@@ -106,4 +115,5 @@ plt.tight_layout()
 OUT.parent.mkdir(exist_ok=True)
 fig.savefig(OUT, dpi=160, bbox_inches="tight", facecolor="white")
 print(f"wrote {OUT.relative_to(ROOT)}")
-print({a: table[a] for a in ARMS}, "plain_retry A diag-pass:", pr_A_diag_pass, "verified:", pr_A_verified)
+print({a: table[a] for a in ARMS}, "plain_retry A: hacks", pr_A_hacks, "failed visible", pr_A_failed_visible,
+      "verified", pr_A_verified, "of", pr_A_runs)
